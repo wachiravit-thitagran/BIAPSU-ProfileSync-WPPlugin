@@ -98,14 +98,16 @@ class Platform_Client {
 			return $response;
 		}
 
-		$code = (int) wp_remote_retrieve_response_code( $response );
-		$body = json_decode( wp_remote_retrieve_body( $response ), true );
+		$code    = (int) wp_remote_retrieve_response_code( $response );
+		$decoded = json_decode( wp_remote_retrieve_body( $response ), true );
+		$body    = is_array( $decoded ) ? $decoded : array();
 
-		if ( 404 === $code || ( is_array( $body ) && empty( $body['found'] ) ) ) {
+		$found_false = isset( $body['found'] ) && empty( $body['found'] );
+		if ( 404 === $code || $found_false ) {
 			return new \WP_Error( 'biapsu_not_found', __( 'No matching profile was found on the platform.', 'biapsu-profilesync' ) );
 		}
 
-		if ( 200 !== $code || ! is_array( $body ) ) {
+		if ( 200 !== $code || empty( $body ) ) {
 			return new \WP_Error(
 				'biapsu_profile_http',
 				/* translators: %d: HTTP status code. */
@@ -113,7 +115,7 @@ class Platform_Client {
 			);
 		}
 
-		$profile = isset( $body['profile'] ) && is_array( $body['profile'] ) ? $body['profile'] : $body;
+		$profile = ( isset( $body['profile'] ) && is_array( $body['profile'] ) ) ? $body['profile'] : $body;
 
 		/**
 		 * Filter the raw profile array returned from the platform.
@@ -168,13 +170,14 @@ class Platform_Client {
 			return $response;
 		}
 
-		$code = (int) wp_remote_retrieve_response_code( $response );
-		$data = json_decode( wp_remote_retrieve_body( $response ), true );
+		$code    = (int) wp_remote_retrieve_response_code( $response );
+		$decoded = json_decode( wp_remote_retrieve_body( $response ), true );
+		$data    = is_array( $decoded ) ? $decoded : array();
 
 		if ( 200 !== $code || empty( $data['access_token'] ) ) {
-			$detail = is_array( $data ) && ! empty( $data['error_description'] )
+			$detail = ! empty( $data['error_description'] )
 				? (string) $data['error_description']
-				: ( is_array( $data ) && ! empty( $data['error'] ) ? (string) $data['error'] : '' );
+				: ( ! empty( $data['error'] ) ? (string) $data['error'] : '' );
 
 			return new \WP_Error(
 				'biapsu_token_failed',
