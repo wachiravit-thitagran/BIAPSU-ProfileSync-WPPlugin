@@ -98,16 +98,29 @@ class Platform_Client {
 			return $response;
 		}
 
-		$code    = (int) wp_remote_retrieve_response_code( $response );
-		$decoded = json_decode( wp_remote_retrieve_body( $response ), true );
-		$body    = is_array( $decoded ) ? $decoded : array();
+		$code = (int) wp_remote_retrieve_response_code( $response );
 
-		$found_false = isset( $body['found'] ) && empty( $body['found'] );
-		if ( 404 === $code || $found_false ) {
+		/** @var mixed $body */
+		$body = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+
+		if ( 404 === $code ) {
 			return new \WP_Error( 'biapsu_not_found', __( 'No matching profile was found on the platform.', 'biapsu-profilesync' ) );
 		}
 
-		if ( 200 !== $code || empty( $body ) ) {
+		if ( ! is_array( $body ) ) {
+			return new \WP_Error(
+				'biapsu_profile_http',
+				/* translators: %d: HTTP status code. */
+				sprintf( __( 'Profile request failed (HTTP %d).', 'biapsu-profilesync' ), $code )
+			);
+		}
+
+		// A well-formed "not found" response.
+		if ( isset( $body['found'] ) && empty( $body['found'] ) ) {
+			return new \WP_Error( 'biapsu_not_found', __( 'No matching profile was found on the platform.', 'biapsu-profilesync' ) );
+		}
+
+		if ( 200 !== $code ) {
 			return new \WP_Error(
 				'biapsu_profile_http',
 				/* translators: %d: HTTP status code. */
