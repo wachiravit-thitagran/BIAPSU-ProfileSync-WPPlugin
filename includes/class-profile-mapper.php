@@ -36,8 +36,8 @@ class Profile_Mapper {
 	/**
 	 * Apply a platform profile to a WP user according to enabled field groups.
 	 *
-	 * @param \WP_User             $user    Target user.
-	 * @param array<string,mixed>  $profile Platform profile data.
+	 * @param \WP_User            $user    Target user.
+	 * @param array<string,mixed> $profile Platform profile data.
 	 * @return array<string,mixed> The changes that were applied (for logging).
 	 */
 	public function apply( \WP_User $user, array $profile ) {

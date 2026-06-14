@@ -40,7 +40,7 @@ class Sync_Controller {
 	const ERROR_META  = 'biapsu_sync_error';  // last sync error message.
 	const ACTION      = 'biapsu_profilesync_decision';
 
-	/** template_redirect priority. Must be AFTER Authorizenter UI's gate (10). */
+	/** The template_redirect priority. Must be AFTER Authorizenter UI's gate (10). */
 	const GATE_PRIORITY = 20;
 
 	/**
@@ -329,8 +329,8 @@ class Sync_Controller {
 	 * @return string
 	 */
 	private function current_url() {
-		$host = isset( $_SERVER['HTTP_HOST'] ) ? wp_unslash( $_SERVER['HTTP_HOST'] ) : '';
-		$uri  = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+		$host = isset( $_SERVER['HTTP_HOST'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) : '';
+		$uri  = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
 
 		if ( '' === $host ) {
 			return home_url( '/' );

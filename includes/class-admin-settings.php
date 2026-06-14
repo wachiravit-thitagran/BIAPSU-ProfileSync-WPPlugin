@@ -95,7 +95,7 @@ class Admin_Settings {
 		$platform['verify_ssl']       = ! empty( $_POST['verify_ssl'] );
 
 		// Only overwrite the secret when a new value is typed.
-		$new_secret = isset( $_POST['client_secret'] ) ? trim( (string) wp_unslash( $_POST['client_secret'] ) ) : '';
+		$new_secret = isset( $_POST['client_secret'] ) ? sanitize_text_field( wp_unslash( $_POST['client_secret'] ) ) : '';
 		if ( '' !== $new_secret ) {
 			$platform['client_secret'] = $new_secret; // Settings::save() encrypts it.
 		}

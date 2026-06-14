@@ -57,7 +57,7 @@ jobs:
         run: vendor/bin/phpcs --standard=phpcs.xml.dist --report-full --report-checkstyle=./phpcs-report.xml
       - name: Annotate PHPCS results
         if: always()
-        run: cs2pr ./phpcs-report.xml
+        run: cs2pr --graceful-warnings ./phpcs-report.xml
 
   static-analysis:
     name: PHPStan

@@ -183,7 +183,7 @@ class Settings {
 		}
 		if ( ! function_exists( 'openssl_encrypt' ) ) {
 			// Last resort: avoid storing plaintext silently; base64 marker.
-			return 'b64:' . base64_encode( $plaintext );
+			return 'b64:' . base64_encode( $plaintext ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Encoding a secret for storage, not obfuscating code.
 		}
 
 		$key    = $this->derive_key();
@@ -194,7 +194,7 @@ class Settings {
 			return '';
 		}
 
-		return 'enc:' . base64_encode( $iv . $cipher );
+		return 'enc:' . base64_encode( $iv . $cipher ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Encoding ciphertext for storage, not obfuscating code.
 	}
 
 	/**
@@ -209,7 +209,7 @@ class Settings {
 			return '';
 		}
 		if ( 0 === strpos( $stored, 'b64:' ) ) {
-			return (string) base64_decode( substr( $stored, 4 ), true );
+			return (string) base64_decode( substr( $stored, 4 ), true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- Decoding a stored secret, not obfuscating code.
 		}
 		if ( 0 !== strpos( $stored, 'enc:' ) ) {
 			// Legacy/plaintext value stored before encryption was available.
@@ -219,7 +219,7 @@ class Settings {
 			return '';
 		}
 
-		$raw = base64_decode( substr( $stored, 4 ), true );
+		$raw = base64_decode( substr( $stored, 4 ), true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- Decoding stored ciphertext, not obfuscating code.
 		if ( false === $raw || strlen( $raw ) <= 16 ) {
 			return '';
 		}

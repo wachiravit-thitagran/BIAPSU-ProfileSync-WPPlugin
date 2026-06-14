@@ -156,7 +156,7 @@ class Platform_Client {
 				'timeout'   => (int) ( $platform['timeout'] ?? 10 ),
 				'sslverify' => ! empty( $platform['verify_ssl'] ),
 				'headers'   => array(
-					'Authorization' => 'Basic ' . base64_encode( $platform['client_id'] . ':' . $platform['client_secret'] ),
+					'Authorization' => 'Basic ' . base64_encode( $platform['client_id'] . ':' . $platform['client_secret'] ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- HTTP Basic auth header per OAuth2 spec, not obfuscating code.
 					'Accept'        => 'application/json',
 					'Content-Type'  => 'application/x-www-form-urlencoded',
 				),
