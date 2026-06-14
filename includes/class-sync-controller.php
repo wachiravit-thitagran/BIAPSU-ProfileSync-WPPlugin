@@ -217,12 +217,21 @@ class Sync_Controller {
 	 * @return bool
 	 */
 	private function questions_pending( $user_id, $provider = '' ) {
-		if ( ! function_exists( 'Authorizenter\\Core\\authorizenter_core' ) ) {
+		// Resolve Authorizenter's accessor dynamically; it is an optional
+		// cross-plugin dependency that is not present at analysis time.
+		$accessor = 'Authorizenter\\Core\\authorizenter_core';
+		if ( ! function_exists( $accessor ) ) {
 			return false;
 		}
 
-		$core = \Authorizenter\Core\authorizenter_core();
-		if ( ! is_object( $core ) || empty( $core->questions ) || ! method_exists( $core->questions, 'has_pending_required' ) ) {
+		$core = call_user_func( $accessor );
+		if ( ! is_object( $core ) ) {
+			return false;
+		}
+
+		$vars      = get_object_vars( $core );
+		$questions = isset( $vars['questions'] ) ? $vars['questions'] : null;
+		if ( ! is_object( $questions ) || ! method_exists( $questions, 'has_pending_required' ) ) {
 			return false;
 		}
 
@@ -230,17 +239,15 @@ class Sync_Controller {
 			$provider = (string) get_user_meta( $user_id, 'authorizenter_last_provider', true );
 		}
 
+		$pending = (bool) call_user_func( array( $questions, 'has_pending_required' ), $user_id, $provider );
+
 		/**
 		 * Allow overriding the defer-to-questions decision.
 		 *
 		 * @param bool $defer   Whether to wait for Authorizenter questions.
 		 * @param int  $user_id User id.
 		 */
-		return (bool) apply_filters(
-			'biapsu_profilesync_defer_to_questions',
-			$core->questions->has_pending_required( $user_id, $provider ),
-			$user_id
-		);
+		return (bool) apply_filters( 'biapsu_profilesync_defer_to_questions', $pending, $user_id );
 	}
 
 	/**

@@ -113,6 +113,22 @@ Each group can be toggled in **Settings → ProfileSync**.
 - The decision form is nonce-protected and bound to the current user ID.
 - Email sync never overwrites a non-empty WP email (prevents account hijacking).
 
+## Development & testing
+
+Pure PHPUnit unit tests with in-memory WordPress stubs (no live WordPress
+needed), mirroring the Authorizenter setup.
+
+```bash
+composer install
+composer test      # PHPUnit
+composer lint      # PHPCS (WordPress Coding Standards)
+composer analyze   # PHPStan (level 5)
+composer syntax    # php -l on all files
+```
+
+GitHub Actions (`.github/workflows/ci.yml`) runs four jobs on every push/PR:
+PHP syntax (8.0–8.3), PHPCS, PHPStan, and PHPUnit (8.0/8.2/8.3).
+
 ## License
 
 GPL-2.0-or-later.

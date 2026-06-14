@@ -1,0 +1,21 @@
+includes:
+	- vendor/szepeviktor/phpstan-wordpress/extension.neon
+
+parameters:
+	level: 5
+	bootstrapFiles:
+		- biapsu-profilesync.php
+	paths:
+		- includes/
+		- biapsu-profilesync.php
+		- uninstall.php
+	excludePaths:
+		- vendor/*
+		- tests/*
+	treatPhpDocTypesAsCertain: false
+	reportUnmatchedIgnoredErrors: false
+	ignoreErrors:
+		- '#Property .* is never read, only written.#'
+		# Optional cross-plugin interop with Authorizenter (resolved dynamically).
+		- '#Call to function call_user_func\(\) with .* will always evaluate to false.#'
+		- '#Parameter \#1 \$callback of function call_user_func expects callable.*#'
