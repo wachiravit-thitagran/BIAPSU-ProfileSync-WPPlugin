@@ -1,0 +1,100 @@
+/* BIA PSU ProfileSync — choice page styles */
+
+.biapsu-card {
+	max-width: 540px;
+	margin: 3rem auto;
+	padding: 2rem;
+	border: 1px solid #e2e3e7;
+	border-radius: 12px;
+	background: #fff;
+	box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06);
+	font-size: 1rem;
+	line-height: 1.7;
+	color: #1f2329;
+	text-align: center;
+}
+
+.biapsu-card__title {
+	margin: 0 0 0.75rem;
+	font-size: 1.4rem;
+	font-weight: 700;
+}
+
+.biapsu-card__lead {
+	margin: 0 0 0.5rem;
+	font-size: 1.1rem;
+}
+
+.biapsu-card__note {
+	margin: 0 0 1.5rem;
+	color: #5b616e;
+	font-size: 0.95rem;
+}
+
+.biapsu-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	align-items: stretch;
+}
+
+.biapsu-form {
+	margin: 0;
+}
+
+.biapsu-btn {
+	display: inline-block;
+	width: 100%;
+	padding: 0.8rem 1.25rem;
+	border: 1px solid transparent;
+	border-radius: 8px;
+	font-size: 1rem;
+	font-weight: 600;
+	cursor: pointer;
+	text-decoration: none;
+	transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.biapsu-btn--primary {
+	background: #b8860b;
+	color: #fff;
+}
+
+.biapsu-btn--primary:hover {
+	background: #9c7209;
+}
+
+.biapsu-btn--ghost {
+	background: #fff;
+	color: #1f2329;
+	border-color: #cdd0d6;
+}
+
+.biapsu-btn--ghost:hover {
+	background: #f4f5f7;
+}
+
+.biapsu-btn[disabled] {
+	opacity: 0.6;
+	cursor: progress;
+}
+
+.biapsu-alert {
+	margin: 0 0 1.25rem;
+	padding: 0.75rem 1rem;
+	border-radius: 8px;
+	text-align: left;
+	font-size: 0.95rem;
+}
+
+.biapsu-alert--error {
+	background: #fdecea;
+	border: 1px solid #f5c2c0;
+	color: #8a1f1a;
+}
+
+@media (min-width: 480px) {
+	.biapsu-actions {
+		flex-direction: row;
+	}
+}
