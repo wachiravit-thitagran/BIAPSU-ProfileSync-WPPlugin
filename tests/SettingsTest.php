@@ -33,7 +33,6 @@ class SettingsTest extends TestCase {
 		$settings->save( $all );
 
 		$reloaded = new Settings();
-		$this->assertSame( 'https://platform.example.org/o/token/', $reloaded->token_endpoint() );
 		$this->assertSame( 'https://platform.example.org/api/profile/', $reloaded->profile_endpoint() );
 	}
 
@@ -41,12 +40,10 @@ class SettingsTest extends TestCase {
 		$settings = new Settings();
 		$all      = $settings->all();
 		$all['platform']['base_url']         = 'https://platform.example.org';
-		$all['platform']['token_endpoint']   = 'https://id.example.org/token';
 		$all['platform']['profile_endpoint'] = 'https://id.example.org/me';
 		$settings->save( $all );
 
 		$reloaded = new Settings();
-		$this->assertSame( 'https://id.example.org/token', $reloaded->token_endpoint() );
 		$this->assertSame( 'https://id.example.org/me', $reloaded->profile_endpoint() );
 	}
 
@@ -55,9 +52,8 @@ class SettingsTest extends TestCase {
 		$this->assertFalse( $settings->is_configured() );
 
 		$all = $settings->all();
-		$all['platform']['base_url']      = 'https://platform.example.org';
-		$all['platform']['client_id']     = 'abc';
-		$all['platform']['client_secret'] = 'shhh';
+		$all['platform']['base_url'] = 'https://platform.example.org';
+		$all['platform']['api_key']  = 'shhh';
 		$settings->save( $all );
 
 		$this->assertTrue( ( new Settings() )->is_configured() );
@@ -66,16 +62,16 @@ class SettingsTest extends TestCase {
 	public function test_secret_is_stored_encrypted_and_roundtrips(): void {
 		$settings = new Settings();
 		$all      = $settings->all();
-		$all['platform']['client_secret'] = 'super-secret-value';
+		$all['platform']['api_key'] = 'super-secret-value';
 		$settings->save( $all );
 
 		// Raw stored option must not contain the plaintext.
 		$raw = get_option( Settings::OPTION );
-		$this->assertStringNotContainsString( 'super-secret-value', (string) $raw['platform']['client_secret'] );
-		$this->assertStringStartsWith( 'enc:', (string) $raw['platform']['client_secret'] );
+		$this->assertStringNotContainsString( 'super-secret-value', (string) $raw['platform']['api_key'] );
+		$this->assertStringStartsWith( 'enc:', (string) $raw['platform']['api_key'] );
 
 		// Reading back through Settings decrypts it.
-		$this->assertSame( 'super-secret-value', ( new Settings() )->get( 'platform' )['client_secret'] );
+		$this->assertSame( 'super-secret-value', ( new Settings() )->get( 'platform' )['api_key'] );
 	}
 
 	public function test_encrypt_decrypt_roundtrip(): void {

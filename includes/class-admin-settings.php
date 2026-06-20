@@ -58,12 +58,13 @@ class Admin_Settings {
 	 * @return void
 	 */
 	public function menu() {
-		add_options_page(
+		add_menu_page(
 			__( 'BIA PSU ProfileSync', 'biapsu-profilesync' ),
 			__( 'ProfileSync', 'biapsu-profilesync' ),
 			'manage_options',
 			self::SLUG,
-			array( $this, 'render' )
+			array( $this, 'render' ),
+			'dashicons-update-alt'
 		);
 	}
 
@@ -87,17 +88,14 @@ class Admin_Settings {
 
 		$platform = $all['platform'];
 		$platform['base_url']         = isset( $_POST['base_url'] ) ? esc_url_raw( wp_unslash( $_POST['base_url'] ) ) : '';
-		$platform['token_endpoint']   = isset( $_POST['token_endpoint'] ) ? esc_url_raw( wp_unslash( $_POST['token_endpoint'] ) ) : '';
 		$platform['profile_endpoint'] = isset( $_POST['profile_endpoint'] ) ? esc_url_raw( wp_unslash( $_POST['profile_endpoint'] ) ) : '';
-		$platform['client_id']        = isset( $_POST['client_id'] ) ? sanitize_text_field( wp_unslash( $_POST['client_id'] ) ) : '';
-		$platform['scope']            = isset( $_POST['scope'] ) ? sanitize_text_field( wp_unslash( $_POST['scope'] ) ) : '';
 		$platform['timeout']          = isset( $_POST['timeout'] ) ? max( 1, (int) $_POST['timeout'] ) : 10;
 		$platform['verify_ssl']       = ! empty( $_POST['verify_ssl'] );
 
 		// Only overwrite the secret when a new value is typed.
-		$new_secret = isset( $_POST['client_secret'] ) ? sanitize_text_field( wp_unslash( $_POST['client_secret'] ) ) : '';
+		$new_secret = isset( $_POST['api_key'] ) ? sanitize_text_field( wp_unslash( $_POST['api_key'] ) ) : '';
 		if ( '' !== $new_secret ) {
-			$platform['client_secret'] = $new_secret; // Settings::save() encrypts it.
+			$platform['api_key'] = $new_secret; // Settings::save() encrypts it.
 		}
 
 		$all['platform'] = $platform;
@@ -112,7 +110,6 @@ class Admin_Settings {
 		$all['choice_page_id'] = isset( $_POST['choice_page_id'] ) ? (int) $_POST['choice_page_id'] : 0;
 
 		$this->settings->save( $all );
-		$this->client->flush_token();
 
 		add_settings_error( self::SLUG, 'saved', __( 'Settings saved.', 'biapsu-profilesync' ), 'updated' );
 	}
@@ -128,10 +125,17 @@ class Admin_Settings {
 		}
 		check_admin_referer( 'biapsu_profilesync_test' );
 
-		$this->client->flush_token();
-		$token  = $this->client->get_access_token( true );
-		$status = is_wp_error( $token ) ? 'fail' : 'ok';
-		$msg    = is_wp_error( $token ) ? $token->get_error_message() : __( 'Token acquired successfully.', 'biapsu-profilesync' );
+		// To test the API key, we make a profile request with a dummy email.
+		// A 400 or 200 means the API key was accepted, even if the user isn't found.
+		$response = $this->client->fetch_profile( 'test_connection@example.com' );
+		
+		if ( is_wp_error( $response ) && $response->get_error_code() !== 'biapsu_not_found' && strpos( $response->get_error_code(), '_http' ) === false ) {
+			$status = 'fail';
+			$msg    = $response->get_error_message();
+		} else {
+			$status = 'ok';
+			$msg    = __( 'API Key accepted successfully.', 'biapsu-profilesync' );
+		}
 
 		set_transient(
 			'biapsu_profilesync_test_result',
@@ -142,7 +146,7 @@ class Admin_Settings {
 			60
 		);
 
-		wp_safe_redirect( admin_url( 'options-general.php?page=' . self::SLUG ) );
+		wp_safe_redirect( admin_url( 'admin.php?page=' . self::SLUG ) );
 		exit;
 	}
 
@@ -214,25 +218,13 @@ class Admin_Settings {
 							<p class="description"><?php esc_html_e( 'Token/profile endpoints are derived from this if left blank below.', 'biapsu-profilesync' ); ?></p></td>
 					</tr>
 					<tr>
-						<th scope="row"><label for="token_endpoint"><?php esc_html_e( 'Token endpoint', 'biapsu-profilesync' ); ?></label></th>
-						<td><input type="url" name="token_endpoint" id="token_endpoint" class="regular-text" value="<?php echo esc_attr( $platform['token_endpoint'] ); ?>" placeholder="<?php echo esc_attr( $this->settings->token_endpoint() ); ?>" /></td>
-					</tr>
-					<tr>
 						<th scope="row"><label for="profile_endpoint"><?php esc_html_e( 'Profile endpoint', 'biapsu-profilesync' ); ?></label></th>
 						<td><input type="url" name="profile_endpoint" id="profile_endpoint" class="regular-text" value="<?php echo esc_attr( $platform['profile_endpoint'] ); ?>" placeholder="<?php echo esc_attr( $this->settings->profile_endpoint() ); ?>" /></td>
 					</tr>
 					<tr>
-						<th scope="row"><label for="client_id"><?php esc_html_e( 'Client ID', 'biapsu-profilesync' ); ?></label></th>
-						<td><input type="text" name="client_id" id="client_id" class="regular-text" value="<?php echo esc_attr( $platform['client_id'] ); ?>" autocomplete="off" /></td>
-					</tr>
-					<tr>
-						<th scope="row"><label for="client_secret"><?php esc_html_e( 'Client secret', 'biapsu-profilesync' ); ?></label></th>
-						<td><input type="password" name="client_secret" id="client_secret" class="regular-text" value="" autocomplete="new-password" placeholder="<?php echo $platform['client_secret'] ? esc_attr__( '•••••• (stored — leave blank to keep)', 'biapsu-profilesync' ) : ''; ?>" />
-							<p class="description"><?php esc_html_e( 'Stored encrypted. Leave blank to keep the existing secret.', 'biapsu-profilesync' ); ?></p></td>
-					</tr>
-					<tr>
-						<th scope="row"><label for="scope"><?php esc_html_e( 'Scope', 'biapsu-profilesync' ); ?></label></th>
-						<td><input type="text" name="scope" id="scope" class="regular-text" value="<?php echo esc_attr( $platform['scope'] ); ?>" /></td>
+						<th scope="row"><label for="api_key"><?php esc_html_e( 'API Key', 'biapsu-profilesync' ); ?></label></th>
+						<td><input type="password" name="api_key" id="api_key" class="regular-text" value="" autocomplete="new-password" placeholder="<?php echo $platform['api_key'] ? esc_attr__( '•••••• (stored — leave blank to keep)', 'biapsu-profilesync' ) : ''; ?>" />
+							<p class="description"><?php esc_html_e( 'Stored encrypted. Leave blank to keep the existing key.', 'biapsu-profilesync' ); ?></p></td>
 					</tr>
 					<tr>
 						<th scope="row"><?php esc_html_e( 'Request timeout (s)', 'biapsu-profilesync' ); ?></th>
@@ -268,7 +260,7 @@ class Admin_Settings {
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<?php wp_nonce_field( 'biapsu_profilesync_test' ); ?>
 				<input type="hidden" name="action" value="biapsu_profilesync_test" />
-				<p><button type="submit" class="button"><?php esc_html_e( 'Request a token from the platform', 'biapsu-profilesync' ); ?></button></p>
+				<p><button type="submit" class="button"><?php esc_html_e( 'Test connection to the platform', 'biapsu-profilesync' ); ?></button></p>
 			</form>
 		</div>
 		<?php

@@ -47,20 +47,12 @@ after it. The login-time evaluation can be overridden with the
 
 ## Server-to-server data fetch
 
-The plugin uses the OAuth2 `client_credentials` grant against the platform's
-token endpoint to obtain an application access token (cached in a transient),
-then calls the profile endpoint with the user's email.
+The plugin uses an API Key to authenticate requests to the platform's profile
+endpoint.
 
 ### Expected platform contract
 
-**Token** — `POST` (`application/x-www-form-urlencoded`), HTTP Basic client auth:
-
-```
-grant_type=client_credentials&scope=<scope>
-→ 200 { "access_token": "...", "token_type": "Bearer", "expires_in": 3600 }
-```
-
-**Profile** — `GET` with `Authorization: Bearer <token>`:
+**Profile** — `GET` with `Authorization: Api-Key <api_key>`:
 
 ```
 <profile_endpoint>?email=<email>
@@ -72,7 +64,7 @@ grant_type=client_credentials&scope=<scope>
 ```
 
 > The platform here is the Django *volunteer-digitizing-app*. Expose a small
-> DRF/OAuth-toolkit view that authenticates the bearer token and returns the
+> DRF view that authenticates the API key and returns the
 > `Volunteer` fields above, filtered by `email`.
 
 ## Field mapping
@@ -84,16 +76,16 @@ grant_type=client_credentials&scope=<scope>
 | Affiliation | `affiliation`, `department`, `position`, `location` → `biapsu_*` user meta |
 | User type | `user_type`, `user_type_description`, `join_reason` → `biapsu_*` user meta |
 
-Each group can be toggled in **Settings → ProfileSync**.
+Each group can be toggled in **ProfileSync**.
 
 ## Installation
 
 1. Copy/symlink this folder into `wp-content/plugins/biapsu-profilesync`.
 2. Activate **Authorizenter Core** first, then **BIA PSU ProfileSync**.
-   (Activation auto-creates a "Sync your profile" page with the
-   `[biapsu_profilesync]` shortcode.)
-3. Configure the platform connection under **Settings → ProfileSync** and run
-   **Test connection**.
+3. Log in to your WordPress Admin.
+4. Go to **ProfileSync** in the left sidebar menu.
+5. Under **Platform Connection**, configure the API endpoints and the **API Key** for server-to-server communication.
+6. Click **Test connection to the platform** to ensure your credentials are valid.
 
 ## Extensibility
 
@@ -108,8 +100,7 @@ Each group can be toggled in **Settings → ProfileSync**.
 
 ## Security notes
 
-- The client secret is stored AES-256-CBC encrypted (key derived from WP salts).
-- The access token is cached only in a transient, refreshed a minute early.
+- **API Key:** API keys are encrypted before being saved to the WordPress database. They are only decrypted in-memory during a request.
 - The decision form is nonce-protected and bound to the current user ID.
 - Email sync never overwrites a non-empty WP email (prevents account hijacking).
 

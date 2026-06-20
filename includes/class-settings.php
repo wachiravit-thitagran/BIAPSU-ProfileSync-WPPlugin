@@ -26,14 +26,11 @@ class Settings {
 			// Master switch for the post-login sync prompt.
 			'enabled'          => true,
 
-			// Server-to-server OAuth2 (client_credentials) configuration.
+			// Server-to-server API Key configuration.
 			'platform'         => array(
 				'base_url'         => '',
-				'token_endpoint'   => '', // Absolute URL, or leave blank to derive base_url . /o/token/.
 				'profile_endpoint' => '', // Absolute URL, or leave blank to derive base_url . /api/profile/.
-				'client_id'        => '',
-				'client_secret'    => '', // Stored encrypted.
-				'scope'            => 'profile:read',
+				'api_key'          => '', // Stored encrypted.
 				'timeout'          => 10,
 				'verify_ssl'       => true,
 			),
@@ -64,7 +61,7 @@ class Settings {
 		$merged = $this->merge_defaults( $stored );
 
 		// Decrypt secret for in-memory use.
-		$merged['platform']['client_secret'] = $this->decrypt( $merged['platform']['client_secret'] );
+		$merged['platform']['api_key'] = $this->decrypt( $merged['platform']['api_key'] ?? '' );
 
 		return $merged;
 	}
@@ -108,8 +105,8 @@ class Settings {
 	 * @return bool
 	 */
 	public function save( array $settings ) {
-		if ( isset( $settings['platform']['client_secret'] ) ) {
-			$settings['platform']['client_secret'] = $this->encrypt( (string) $settings['platform']['client_secret'] );
+		if ( isset( $settings['platform']['api_key'] ) ) {
+			$settings['platform']['api_key'] = $this->encrypt( (string) $settings['platform']['api_key'] );
 		}
 		return update_option( self::OPTION, $settings );
 	}
@@ -125,21 +122,6 @@ class Settings {
 		}
 	}
 
-	/**
-	 * Resolve the token endpoint (explicit or derived from base URL).
-	 *
-	 * @return string
-	 */
-	public function token_endpoint() {
-		$p = $this->get( 'platform' );
-		if ( ! empty( $p['token_endpoint'] ) ) {
-			return $p['token_endpoint'];
-		}
-		if ( ! empty( $p['base_url'] ) ) {
-			return trailingslashit( $p['base_url'] ) . 'o/token/';
-		}
-		return '';
-	}
 
 	/**
 	 * Resolve the profile endpoint (explicit or derived from base URL).
@@ -164,9 +146,7 @@ class Settings {
 	 */
 	public function is_configured() {
 		$p = $this->get( 'platform' );
-		return ! empty( $p['client_id'] )
-			&& ! empty( $p['client_secret'] )
-			&& '' !== $this->token_endpoint()
+		return ! empty( $p['api_key'] )
 			&& '' !== $this->profile_endpoint();
 	}
 
