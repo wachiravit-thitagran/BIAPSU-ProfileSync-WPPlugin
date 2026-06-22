@@ -1,11 +1,7 @@
-node_modules/
 vendor/
+node_modules/
 .DS_Store
-.idea/
-.vscode/
-*.log
-.phpunit.result.cache
-coverage/
 .env
-.env.*
-!.env.example
+.phpunit.result.cache
+*.log
+coverage/
