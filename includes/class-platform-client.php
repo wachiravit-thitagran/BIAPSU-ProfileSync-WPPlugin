@@ -132,6 +132,4 @@ class Platform_Client {
 		 */
 		return apply_filters( 'biapsu_profilesync_platform_profile', $profile, $email );
 	}
-
-	}
 }

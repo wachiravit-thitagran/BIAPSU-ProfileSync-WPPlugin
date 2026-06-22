@@ -234,7 +234,7 @@ function apply_filters( $tag, $value = null ) { return $value; }
 
 function wp_safe_redirect( $location, $status = 302 ) {
 	$GLOBALS['__last_redirect'] = $location;
-	return true;
+	throw new Exception('wp_safe_redirect: ' . $location);
 }
 function wp_login_url( $redirect = '' ) { return 'https://example.test/wp-login.php'; }
 function check_admin_referer( $action = -1, $query_arg = '_wpnonce' ) { return true; }
@@ -335,3 +335,31 @@ function plugin_dir_path( $file ) { return rtrim( dirname( $file ), '/\\' ) . '/
 function plugin_dir_url( $file ) { return 'https://example.test/wp-content/plugins/' . basename( dirname( $file ) ) . '/'; }
 
 // phpcs:enable
+
+// --- Admin UI & Capabilities ---
+function add_menu_page($page_title, $menu_title, $capability, $menu_slug, $function = '', $icon_url = '', $position = null) {}
+function settings_errors($setting = '', $sanitize = false, $hide_on_update = false) {}
+function add_settings_error($setting, $code, $message, $type = 'error') {}
+function wp_die($message = '', $title = '', $args = array()) { throw new Exception('wp_die: ' . $message); }
+function current_user_can($capability, ...$args) { return !empty($GLOBALS['__current_user_can']); }
+function wp_nonce_field($action = -1, $name = '_wpnonce', $referer = true, $echo = true) {
+    $field = '<input type="hidden" name="' . esc_attr($name) . '" value="' . wp_create_nonce($action) . '" />';
+    if ($echo) { echo $field; }
+    return $field;
+}
+function checked($checked, $current = true, $echo = true) {
+    $r = '';
+    if ((string) $checked === (string) $current) {
+        $r = ' checked="checked"';
+    }
+    if ($echo) { echo $r; }
+    return $r;
+}
+function selected($selected, $current = true, $echo = true) {
+    $r = '';
+    if ((string) $selected === (string) $current) {
+        $r = ' selected="selected"';
+    }
+    if ($echo) { echo $r; }
+    return $r;
+}
