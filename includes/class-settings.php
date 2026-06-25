@@ -24,10 +24,10 @@ class Settings {
 	public function defaults() {
 		return array(
 			// Master switch for the post-login sync prompt.
-			'enabled'          => true,
+			'enabled'        => true,
 
 			// Server-to-server API Key configuration.
-			'platform'         => array(
+			'platform'       => array(
 				'base_url'         => '',
 				'profile_endpoint' => '', // Absolute URL, or leave blank to derive base_url . /api/profile/.
 				'api_key'          => '', // Stored encrypted.
@@ -36,15 +36,15 @@ class Settings {
 			),
 
 			// Which fields to copy from the platform onto the WP user.
-			'fields'           => array(
-				'name'      => true, // first_name, last_name (+ display_name).
-				'contact'   => true, // phone_number (user meta), email (only if WP email is empty).
+			'fields'         => array(
+				'name'        => true, // first_name, last_name (+ display_name).
+				'contact'     => true, // phone_number (user meta), email (only if WP email is empty).
 				'affiliation' => true, // affiliation, department, position, location (user meta).
-				'user_type' => true, // user_type, user_type_description, join_reason (user meta).
+				'user_type'   => true, // user_type, user_type_description, join_reason (user meta).
 			),
 
 			// Slug of the page that hosts the [biapsu_profilesync] shortcode.
-			'choice_page_id'   => 0,
+			'choice_page_id' => 0,
 		);
 	}
 

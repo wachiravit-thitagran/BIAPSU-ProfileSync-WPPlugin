@@ -86,7 +86,7 @@ class Admin_Settings {
 
 		$all['enabled'] = ! empty( $_POST['enabled'] );
 
-		$platform = $all['platform'];
+		$platform                     = $all['platform'];
 		$platform['base_url']         = isset( $_POST['base_url'] ) ? esc_url_raw( wp_unslash( $_POST['base_url'] ) ) : '';
 		$platform['profile_endpoint'] = isset( $_POST['profile_endpoint'] ) ? esc_url_raw( wp_unslash( $_POST['profile_endpoint'] ) ) : '';
 		$platform['timeout']          = isset( $_POST['timeout'] ) ? max( 1, (int) $_POST['timeout'] ) : 10;
@@ -128,7 +128,7 @@ class Admin_Settings {
 		// To test the API key, we make a profile request with a dummy email.
 		// A 400 or 200 means the API key was accepted, even if the user isn't found.
 		$response = $this->client->fetch_profile( 'test_connection@example.com' );
-		
+
 		if ( is_wp_error( $response ) && $response->get_error_code() !== 'biapsu_not_found' && strpos( $response->get_error_code(), '_http' ) === false ) {
 			$status = 'fail';
 			$msg    = $response->get_error_message();

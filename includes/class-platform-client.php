@@ -94,7 +94,11 @@ class Platform_Client {
 
 		$code = (int) wp_remote_retrieve_response_code( $response );
 
-		/** @var mixed $body */
+		/**
+		 * Decoded response body.
+		 *
+		 * @var mixed $body
+		 */
 		$body = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 
 		if ( 400 === $code ) {
