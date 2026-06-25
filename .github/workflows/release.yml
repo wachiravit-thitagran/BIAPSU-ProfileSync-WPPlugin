@@ -1,0 +1,116 @@
+name: Release
+
+# Auto-release on every push to main. The dev workflow is: edit code, push. 
+# This job computes the next version, stamps it into the plugin, builds 
+# biapsu-profilesync.zip and publishes a GitHub Release. The plugin's self-updater 
+# then offers that release to sites.
+#
+# Versioning: the PATCH number is auto-bumped from the latest git tag. To release
+# a new MAJOR/MINOR, bump the Version header in biapsu-profilesync.php manually 
+# and push — the workflow honors the higher header value and resets patch. 
+# The repo files are not committed back; the git tag + release are the source of truth, 
+# and the version is stamped only into the packaged ZIPs.
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/**'
+
+# Serialize runs so each sees the previous release's tag (keeps versions unique).
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: ${{ !contains(github.event.head_commit.message, '[skip release]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0  # full history + tags to compute the next version
+
+      - name: Compute next version
+        id: ver
+        run: |
+          set -euo pipefail
+          # Strict semver token from the plugin Version header. grep -oE only
+          # yields digits/dots, so a malformed header cannot leak shell metachars.
+          current=$(grep -iE '^[[:space:]]*\*?[[:space:]]*Version:' biapsu-profilesync.php | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
+          latest_tag=$(git tag --list 'v*' --sort=-v:refname | grep -oE '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1 | sed 's/^v//' || true)
+          echo "header=${current:-none}  latest_tag=${latest_tag:-none}"
+
+          if [ -z "${latest_tag}" ]; then
+            next="${current:-0.1.0}"                       # first release: use the header as-is
+          else
+            higher=$(printf '%s\n%s\n' "$current" "$latest_tag" | sort -V | tail -1)
+            if [ -n "$current" ] && [ "$higher" = "$current" ] && [ "$current" != "$latest_tag" ]; then
+              next="$current"                              # dev manually bumped minor/major
+            else
+              IFS=. read -r MA MI PA <<< "$latest_tag"     # otherwise auto patch-bump
+              next="${MA}.${MI}.$((PA + 1))"
+            fi
+          fi
+
+          # Defence in depth: refuse anything that is not strict semver.
+          if ! printf '%s' "$next" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Computed version '$next' is not valid semver; aborting." >&2
+            exit 1
+          fi
+
+          echo "next=$next" >> "$GITHUB_OUTPUT"
+          echo "tag=v$next" >> "$GITHUB_OUTPUT"
+          echo "Next version: $next (tag v$next)"
+
+      - uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc # 2.37.1
+        with:
+          php-version: '8.2'
+          coverage: none
+
+      - name: Install runtime dependencies (no dev)
+        run: composer install --no-dev --optimize-autoloader --no-interaction
+
+      - name: Stamp version into the plugin
+        env:
+          NEXT: ${{ steps.ver.outputs.next }}   # validated semver, read via env (never inlined)
+        run: |
+          set -euo pipefail
+          # Plugin header.
+          sed -i -E "s/^([[:space:]]*\*[[:space:]]*Version:[[:space:]]*).*/\1${NEXT}/" biapsu-profilesync.php
+          # Version constant.
+          sed -i -E "s/(BIAPSU_PROFILESYNC_VERSION', ')[0-9.]+(')/\1${NEXT}\2/" biapsu-profilesync.php
+          # readme.txt Stable tag.
+          if [ -f "readme.txt" ]; then
+            sed -i -E "s/^(Stable tag:[[:space:]]*).*/\1${NEXT}/" readme.txt
+          fi
+          echo "Stamped ${NEXT}:"
+          grep -REn 'Version:|_VERSION|Stable tag:' biapsu-profilesync.php readme.txt | grep -F "${NEXT}" || true
+
+      - name: Build plugin ZIP
+        run: |
+          mkdir -p dist
+          # Create a temporary directory for zipping so it has the right top-level folder name inside the zip
+          mkdir -p /tmp/biapsu-profilesync
+          # Copy files tracking in git + vendor, excluding unnecessary ones
+          rsync -a --exclude='.git' --exclude='.github' --exclude='tests' --exclude='node_modules' --exclude='dist' . /tmp/biapsu-profilesync/
+          cd /tmp
+          zip -rq "$GITHUB_WORKSPACE/dist/biapsu-profilesync.zip" biapsu-profilesync
+          cd "$GITHUB_WORKSPACE"
+          ls -la dist
+
+      - name: Publish GitHub Release with assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.ver.outputs.tag }}    # validated semver tag, read via env
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" dist/biapsu-profilesync.zip \
+            --target "$GITHUB_SHA" \
+            --title "$TAG" \
+            --generate-notes
