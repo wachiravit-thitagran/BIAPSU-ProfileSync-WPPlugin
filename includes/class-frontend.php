@@ -127,14 +127,19 @@ class Frontend {
 					'post_status'  => 'publish',
 					'post_type'    => 'page',
 					'post_content' => '[' . self::SHORTCODE . ']',
-				)
+				),
+				true
 			);
 		}
 
-		if ( $page_id && ! is_wp_error( $page_id ) ) {
+		if ( ! is_wp_error( $page_id ) && $page_id > 0 ) {
 			$all['choice_page_id'] = (int) $page_id;
 			$this->settings->save( $all );
 			return (int) $page_id;
+		}
+
+		if ( is_wp_error( $page_id ) ) {
+			error_log( 'BIAPSU Profile Sync Error creating page: ' . $page_id->get_error_message() );
 		}
 
 		return 0;

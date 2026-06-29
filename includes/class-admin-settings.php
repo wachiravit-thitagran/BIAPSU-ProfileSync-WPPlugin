@@ -130,6 +130,7 @@ class Admin_Settings {
 		$response = $this->client->fetch_profile( 'test_connection@example.com' );
 
 		if ( is_wp_error( $response ) && $response->get_error_code() !== 'biapsu_not_found' && strpos( $response->get_error_code(), '_http' ) === false ) {
+			error_log( 'BIAPSU Profile Sync API Test Error: ' . $response->get_error_message() );
 			$status = 'fail';
 			$msg    = $response->get_error_message();
 		} else {

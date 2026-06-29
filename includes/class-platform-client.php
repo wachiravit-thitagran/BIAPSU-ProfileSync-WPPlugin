@@ -89,6 +89,7 @@ class Platform_Client {
 		);
 
 		if ( is_wp_error( $response ) ) {
+			error_log( 'BIAPSU Profile Sync API Error: ' . $response->get_error_message() );
 			return $response;
 		}
 

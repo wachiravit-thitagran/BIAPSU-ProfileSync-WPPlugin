@@ -281,6 +281,7 @@ class Sync_Controller {
 			$profile = $this->client->fetch_profile( $email );
 
 			if ( is_wp_error( $profile ) ) {
+				error_log( 'BIAPSU Profile Sync Error fetching profile: ' . $profile->get_error_message() );
 				// Stay pending so the user can retry or skip.
 				update_user_meta( $user_id, self::ERROR_META, $profile->get_error_message() );
 				wp_safe_redirect( add_query_arg( 'biapsu_sync', 'error', get_permalink( (int) $this->settings->get( 'choice_page_id' ) ) ) );
