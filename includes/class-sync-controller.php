@@ -119,6 +119,14 @@ class Sync_Controller {
 			$email = $user->user_email;
 		}
 
+		// Check if they actually exist on the BIA platform before interrupting their flow.
+		$profile = $this->client->fetch_profile( $email );
+		if ( is_wp_error( $profile ) ) {
+			// Profile not found or API error. Skip sync silently.
+			update_user_meta( $user->ID, self::STATE_META, 'skipped' );
+			return;
+		}
+
 		update_user_meta( $user->ID, self::STATE_META, 'await' );
 		update_user_meta( $user->ID, self::EMAIL_META, $email );
 	}

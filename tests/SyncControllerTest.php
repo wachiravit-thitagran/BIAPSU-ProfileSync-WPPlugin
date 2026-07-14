@@ -29,6 +29,13 @@ class SyncControllerTest extends TestCase {
 
 	protected function setUp(): void {
 		bia_test_reset();
+		update_option( Settings::OPTION, array(
+			'enabled'  => true,
+			'platform' => array(
+				'api_key'  => 'test-key',
+				'base_url' => 'https://test.bia.psu.ac.th/',
+			),
+		) );
 	}
 
 	private function controller(): Sync_Controller {
@@ -50,10 +57,29 @@ class SyncControllerTest extends TestCase {
 		$user = bia_test_make_user( 1, 'new@example.org' );
 		$id   = (object) array( 'email' => 'new@example.org' );
 
+		$GLOBALS['__http_queue'][] = array(
+			'response' => array( 'code' => 200 ),
+			'body'     => json_encode( array( 'success' => true, 'data' => array( 'email' => 'new@example.org' ) ) ),
+		);
+
 		$this->controller()->flag_new_user( $user, $id );
 
 		$this->assertSame( 'await', get_user_meta( 1, Sync_Controller::STATE_META, true ) );
 		$this->assertSame( 'new@example.org', get_user_meta( 1, Sync_Controller::EMAIL_META, true ) );
+	}
+
+	public function test_flag_new_user_sets_skipped_when_profile_not_found(): void {
+		$user = bia_test_make_user( 1, 'missing@example.org' );
+		$id   = (object) array( 'email' => 'missing@example.org' );
+
+		$GLOBALS['__http_queue'][] = array(
+			'response' => array( 'code' => 400 ),
+			'body'     => json_encode( array( 'success' => false, 'message' => 'Volunteer not found' ) ),
+		);
+
+		$this->controller()->flag_new_user( $user, $id );
+
+		$this->assertSame( 'skipped', get_user_meta( 1, Sync_Controller::STATE_META, true ) );
 	}
 
 	public function test_arm_after_login_arms_when_no_questions(): void {
