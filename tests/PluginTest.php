@@ -44,6 +44,16 @@ class PluginTest extends TestCase {
 		$this->assertTrue( true );
 	}
 
+	public function test_hooks_registers_the_github_updater() {
+		Plugin::instance()->hooks();
+
+		$this->assertContains(
+			'pre_set_site_transient_update_plugins',
+			array_column( $GLOBALS['__filters'], 'tag' ),
+			'The plugin should wire up self-hosted GitHub updates.'
+		);
+	}
+
 	public function test_hooks_admin() {
 		$plugin = Plugin::instance();
 		

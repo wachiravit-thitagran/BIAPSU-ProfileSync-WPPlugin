@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       BIA PSU ProfileSync
- * Plugin URI:        https://github.com/wachiravit-thitagarn/BIAPSU-ProfileSync-WPPlugin
+ * Plugin URI:        https://github.com/wachiravit-thitagran/BIAPSU-ProfileSync-WPPlugin
  * Description:       After a first-time login through Authorizenter, asks the user whether to sync their profile from the Buddhadhamma (พุทธธรรม) platform. On consent, fetches first name, last name, contact, affiliation and user-type data via a server-to-server OAuth2 (client_credentials) call and applies it to the new WordPress user. On decline, the normal Authorizenter flow is preserved.
  * Version:           0.1.0
  * Requires at least: 6.0
@@ -23,6 +23,18 @@ define( 'BIAPSU_PROFILESYNC_VERSION', '0.1.0' );
 define( 'BIAPSU_PROFILESYNC_FILE', __FILE__ );
 define( 'BIAPSU_PROFILESYNC_DIR', plugin_dir_path( __FILE__ ) );
 define( 'BIAPSU_PROFILESYNC_URL', plugin_dir_url( __FILE__ ) );
+
+/**
+ * GitHub repository ("owner/repo") this plugin updates itself from.
+ *
+ * Must match the `Plugin URI` header above — a typo here fails silently, because
+ * the GitHub API answers 404 exactly as it would for a repository with no
+ * releases. Point it at a fork by defining the constant in wp-config.php, or
+ * filter `biapsu_profilesync_github_repo`. Set it to '' to disable updates.
+ */
+if ( ! defined( 'BIAPSU_PROFILESYNC_GITHUB_REPO' ) ) {
+	define( 'BIAPSU_PROFILESYNC_GITHUB_REPO', 'wachiravit-thitagran/BIAPSU-ProfileSync-WPPlugin' );
+}
 
 /**
  * Minimal PSR-4-ish autoloader for the plugin's classes.

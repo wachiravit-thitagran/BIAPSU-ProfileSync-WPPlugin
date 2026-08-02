@@ -23,6 +23,11 @@ if ( ! defined( 'BIAPSU_PROFILESYNC_DIR' ) ) {
 if ( ! defined( 'BIAPSU_PROFILESYNC_URL' ) ) {
 	define( 'BIAPSU_PROFILESYNC_URL', 'https://example.test/wp-content/plugins/biapsu-profilesync/' );
 }
+// A dummy update repository, so the updater wiring is exercised without ever
+// naming the real one (the shipped default is asserted in GithubUpdaterTest).
+if ( ! defined( 'BIAPSU_PROFILESYNC_GITHUB_REPO' ) ) {
+	define( 'BIAPSU_PROFILESYNC_GITHUB_REPO', 'owner/repo' );
+}
 
 $inc = $root . '/includes/';
 require $inc . 'class-settings.php';
@@ -31,4 +36,5 @@ require $inc . 'class-profile-mapper.php';
 require $inc . 'class-sync-controller.php';
 require $inc . 'class-frontend.php';
 require $inc . 'class-admin-settings.php';
+require $inc . 'class-github-updater.php';
 require $inc . 'class-plugin.php';

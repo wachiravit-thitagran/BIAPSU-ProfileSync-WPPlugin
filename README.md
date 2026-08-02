@@ -1,7 +1,7 @@
 # BIA PSU ProfileSync
 
 A WordPress plugin that intercepts the **first-time login** completed through
-[Authorizenter](https://github.com/wachiravit-thitagarn/authorizenter) and asks
+[Authorizenter](https://github.com/wachiravit-thitagran/Authorizenter) and asks
 the user whether to sync their profile from the **Buddhadhamma (พุทธธรรม)
 platform**.
 
@@ -87,6 +87,31 @@ Each group can be toggled in **ProfileSync**.
 5. Under **Platform Connection**, configure the API endpoints and the **API Key** for server-to-server communication.
 6. Click **Test connection to the platform** to ensure your credentials are valid.
 
+## Updates
+
+The plugin updates **itself** from this repository's **GitHub Releases** — the
+WordPress *Plugins* screen shows an available update whenever a release tag newer
+than the installed version exists, and installs it like any other plugin.
+
+- The release workflow (`.github/workflows/release.yml`) builds and attaches
+  `biapsu-profilesync.zip` on every push to `main`. The updater prefers that
+  asset over GitHub's source zipball, so the installed folder stays
+  `biapsu-profilesync`.
+- The default repository is `wachiravit-thitagran/BIAPSU-ProfileSync-WPPlugin`,
+  and it must match the `Plugin URI` header — a typo there fails silently,
+  because the GitHub API answers `404` exactly as it would for a repository with
+  no releases. `GithubUpdaterTest` pins the two together.
+- Release lookups are cached for six hours (a failure for one), so a private
+  repository, a rate limit or an offline site costs nothing on the Plugins
+  screen and never raises a notice.
+
+Point it at a fork in `wp-config.php`, or filter it:
+
+```php
+define( 'BIAPSU_PROFILESYNC_GITHUB_REPO', 'your-org/your-repo' ); // '' disables updates
+add_filter( 'biapsu_profilesync_github_repo', fn() => 'your-org/your-repo' );
+```
+
 ## Extensibility
 
 | Hook | Type | Purpose |
@@ -94,6 +119,8 @@ Each group can be toggled in **ProfileSync**.
 | `biapsu_profilesync_should_prompt` | filter | Enable/disable the prompt per user at runtime. |
 | `biapsu_profilesync_defer_to_questions` | filter | Override whether to wait for Authorizenter's required questions. |
 | `biapsu_profilesync_platform_profile` | filter | Modify the raw profile array from the platform. |
+| `biapsu_profilesync_github_repo` | filter | Repository (`owner/repo`) checked for updates; `''` disables them. |
+| `biapsu_profilesync_github_request_args` | filter | `wp_remote_get()` args for the GitHub API (e.g. add an auth token). |
 | `biapsu_profilesync_applied` | action | Fires after fields are applied (`$user, $profile, $applied`). |
 | `biapsu_profilesync_decided` | action | Fires after the decision (`$user, 'sync'|'skip'`). |
 | `biapsu_profilesync_finish_url` | filter | Change the final redirect after the decision. |

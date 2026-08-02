@@ -41,6 +41,22 @@ Settings → ProfileSync:
 3. Choose which field groups to sync.
 4. Use **Test connection** to confirm a token can be obtained.
 
+== Updates ==
+
+The plugin updates itself from this repository's GitHub Releases: the WordPress
+Plugins screen offers a new version whenever a release tag newer than the
+installed version exists, and installs the release's `biapsu-profilesync.zip`
+asset (built by `.github/workflows/release.yml`), so the plugin folder name is
+preserved.
+
+The repository is `wachiravit-thitagran/BIAPSU-ProfileSync-WPPlugin` by default.
+Point it elsewhere by defining `BIAPSU_PROFILESYNC_GITHUB_REPO` in `wp-config.php`
+or filtering `biapsu_profilesync_github_repo` (return `''` to switch updates off).
+Private repositories and higher rate limits need an authorization header, which
+`biapsu_profilesync_github_request_args` can add. Release lookups are cached for
+six hours; a failed or 404 lookup is cached for one hour and simply offers no
+update.
+
 == Platform endpoint contract ==
 
 Token (POST, `application/x-www-form-urlencoded`, HTTP Basic client auth):
@@ -55,6 +71,14 @@ Profile (GET, `Authorization: Bearer <token>`):
     -> 404 { "found": false }
 
 == Changelog ==
+
+= 0.1.2 =
+* Self-hosted updates from this repository's GitHub Releases, so sites can be
+  told a new version exists. Configurable with `BIAPSU_PROFILESYNC_GITHUB_REPO` /
+  `biapsu_profilesync_github_repo`; the plugin details screen now shows this
+  changelog and the full description.
+* Fixed the misspelled owner in the `Plugin URI` header (a dead link, and the
+  repository the updater derives from it).
 
 = 0.1.0 =
 * Initial release.

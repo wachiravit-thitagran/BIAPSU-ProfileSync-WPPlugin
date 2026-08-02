@@ -24,6 +24,8 @@ $GLOBALS['__options']    = array();
 $GLOBALS['__usermeta']   = array();
 $GLOBALS['__users']      = array();
 $GLOBALS['__transients'] = array();
+$GLOBALS['__filters']    = array();
+$GLOBALS['__actions']    = array();
 $GLOBALS['__next_uid']   = 100;
 $GLOBALS['__next_post_id'] = 1;
 
@@ -45,6 +47,8 @@ function bia_test_reset() {
 	$GLOBALS['__http_queue']     = array();
 	$GLOBALS['__http_log']       = array();
 	$GLOBALS['__bia_core']       = null;
+	$GLOBALS['__filters']        = array();
+	$GLOBALS['__actions']        = array();
 }
 
 /** Register a fake user. */
@@ -225,8 +229,14 @@ function wp_remote_retrieve_body( $r ) { return is_wp_error( $r ) ? '' : ( $r['b
 
 // --- Hooks ------------------------------------------------------------------
 
-function add_filter() { return true; }
-function add_action() { return true; }
+function add_filter( $tag = '', $callback = null, $priority = 10, $accepted_args = 1 ) {
+	$GLOBALS['__filters'][] = array( 'tag' => $tag, 'callback' => $callback, 'priority' => $priority );
+	return true;
+}
+function add_action( $tag = '', $callback = null, $priority = 10, $accepted_args = 1 ) {
+	$GLOBALS['__actions'][] = array( 'tag' => $tag, 'callback' => $callback, 'priority' => $priority );
+	return true;
+}
 function do_action( $tag, ...$args ) {}
 function apply_filters( $tag, $value = null ) { return $value; }
 
@@ -294,6 +304,8 @@ function get_pages( $args = array() ) {
 // --- i18n / escaping / sanitizers -------------------------------------------
 
 function wp_json_encode( $data, $options = 0, $depth = 512 ) { return json_encode( $data, $options, $depth ); }
+function wpautop( $s, $br = true ) { return $s; }
+function wp_kses_post( $s ) { return $s; }
 function __( $text, $domain = null ) { return $text; }
 function esc_attr__( $text, $domain = null ) { return $text; }
 function esc_html__( $text, $domain = null ) { return $text; }
@@ -319,6 +331,7 @@ function wp_unslash( $value ) {
 	return is_string( $value ) ? stripslashes( $value ) : $value;
 }
 function trailingslashit( $string ) { return rtrim( (string) $string, '/\\' ) . '/'; }
+function untrailingslashit( $string ) { return rtrim( (string) $string, '/\\' ); }
 function add_query_arg( $key, $value = null, $url = null ) {
 	// Support add_query_arg( $key, $value, $url ).
 	$query = is_array( $key ) ? http_build_query( $key ) : rawurlencode( (string) $key ) . '=' . rawurlencode( (string) $value );
@@ -333,6 +346,15 @@ function add_shortcode( $tag, $cb ) {}
 function load_plugin_textdomain( ...$args ) { return true; }
 function plugin_dir_path( $file ) { return rtrim( dirname( $file ), '/\\' ) . '/'; }
 function plugin_dir_url( $file ) { return 'https://example.test/wp-content/plugins/' . basename( dirname( $file ) ) . '/'; }
+function plugin_basename( $file ) { return basename( dirname( $file ) ) . '/' . basename( $file ); }
+function get_plugin_data( $file, $markup = true, $translate = true ) {
+	return array(
+		'Name'        => 'BIA PSU ProfileSync',
+		'Description' => 'Test description.',
+		'Author'      => 'BIA PSU',
+		'Version'     => '0.1.0',
+	);
+}
 
 // phpcs:enable
 

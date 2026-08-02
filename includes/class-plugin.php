@@ -82,10 +82,42 @@ final class Plugin {
 		$this->settings->maybe_set_defaults();
 		$this->controller->hooks();
 		$this->frontend->hooks();
+		$this->init_updater();
 
 		if ( is_admin() ) {
 			$this->admin->hooks();
 		}
+	}
+
+	/**
+	 * Register self-hosted updates from the plugin's GitHub releases.
+	 *
+	 * @return void
+	 */
+	private function init_updater() {
+		$repo = defined( 'BIAPSU_PROFILESYNC_GITHUB_REPO' ) ? BIAPSU_PROFILESYNC_GITHUB_REPO : '';
+
+		/**
+		 * Filter the GitHub repository ("owner/repo") used for self-hosted updates.
+		 *
+		 * Return '' to disable the update check entirely.
+		 *
+		 * @param string $repo GitHub repository as "owner/repo".
+		 */
+		$repo = (string) apply_filters( 'biapsu_profilesync_github_repo', $repo );
+
+		if ( '' === trim( $repo ) ) {
+			return;
+		}
+
+		$updater = new Github_Updater(
+			BIAPSU_PROFILESYNC_FILE,
+			'biapsu-profilesync',
+			$repo,
+			BIAPSU_PROFILESYNC_VERSION,
+			'biapsu-profilesync.zip'
+		);
+		$updater->hooks();
 	}
 
 	/**
