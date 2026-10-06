@@ -75,6 +75,7 @@ add_action( 'init', __NAMESPACE__ . '\\load_textdomain' );
  */
 function boot() {
 	Plugin::instance()->hooks();
+	MCP::register();
 }
 add_action( 'plugins_loaded', __NAMESPACE__ . '\\boot', 20 );
 
