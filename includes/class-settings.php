@@ -162,8 +162,9 @@ class Settings {
 			return '';
 		}
 		if ( ! function_exists( 'openssl_encrypt' ) ) {
-			// Last resort: avoid storing plaintext silently; base64 marker.
-			return 'b64:' . base64_encode( $plaintext ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Encoding a secret for storage, not obfuscating code.
+			// Fail closed: Base64 is encoding, not encryption, and must never be
+			// used as a storage fallback for API credentials.
+			return '';
 		}
 
 		$key    = $this->derive_key();
@@ -189,7 +190,8 @@ class Settings {
 			return '';
 		}
 		if ( 0 === strpos( $stored, 'b64:' ) ) {
-			return (string) base64_decode( substr( $stored, 4 ), true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- Decoding a stored secret, not obfuscating code.
+			// Legacy insecure fallback values remain readable for migration only.
+			return (string) base64_decode( substr( $stored, 4 ), true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- Decoding a legacy stored value.
 		}
 		if ( 0 !== strpos( $stored, 'enc:' ) ) {
 			// Legacy/plaintext value stored before encryption was available.
