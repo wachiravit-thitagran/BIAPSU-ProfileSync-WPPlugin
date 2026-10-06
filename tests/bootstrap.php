@@ -38,3 +38,4 @@ require $inc . 'class-frontend.php';
 require $inc . 'class-admin-settings.php';
 require $inc . 'class-github-updater.php';
 require $inc . 'class-plugin.php';
+require $inc . 'class-mcp.php';
