@@ -49,7 +49,8 @@ class PlatformClientTest extends TestCase {
 		// Profile request carried the Api-Key token and email query.
 		$last = end( $GLOBALS['__http_log'] );
 		$this->assertSame( 'GET', $last['method'] );
-		$this->assertStringContainsString( 'email=', $last['url'] );
+		$this->assertStringContainsString( 'email=somying%40example.org', $last['url'] );
+		$this->assertStringNotContainsString( '%2540', $last['url'] );
 		$this->assertSame( 'Api-Key secret-api-key', $last['args']['headers']['Authorization'] );
 	}
 
