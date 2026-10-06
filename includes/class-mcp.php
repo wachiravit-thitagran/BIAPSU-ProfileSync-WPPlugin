@@ -38,7 +38,7 @@ final class MCP {
 			'biapsu-profilesync',
 			array(
 				'label'       => 'BIA PSU ProfileSync',
-				'description' => 'Profile synchronization status and configuration diagnostics.',
+				'description' => 'User profile synchronization status, readiness, and configuration information.',
 			)
 		);
 	}
@@ -53,7 +53,7 @@ final class MCP {
 			'biapsu-profilesync/get-user-state',
 			array(
 				'label'               => 'Get ProfileSync User State',
-				'description'         => 'Return the ProfileSync state for a WordPress user.',
+				'description'         => 'Retrieves the synchronization state and latest synchronization error, if any, for a WordPress user.',
 				'category'            => 'biapsu-profilesync',
 				'input_schema'        => array(
 					'type'       => 'object',
@@ -75,7 +75,7 @@ final class MCP {
 			'biapsu-profilesync/get-status',
 			array(
 				'label'               => 'Get ProfileSync Status',
-				'description'         => 'Return non-secret configuration and readiness information.',
+				'description'         => 'Retrieves synchronization readiness and non-sensitive configuration information without exposing credentials or secrets.',
 				'category'            => 'biapsu-profilesync',
 				'input_schema'        => array(
 					'type'       => 'object',
