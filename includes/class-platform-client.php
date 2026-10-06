@@ -74,7 +74,7 @@ class Platform_Client {
 			return new \WP_Error( 'biapsu_not_configured', __( 'API Key is not configured.', 'biapsu-profilesync' ) );
 		}
 
-		$url = add_query_arg( 'email', rawurlencode( $email ), $this->settings->profile_endpoint() );
+		$url = add_query_arg( 'email', $email, $this->settings->profile_endpoint() );
 
 		$response = wp_remote_get(
 			$url,
