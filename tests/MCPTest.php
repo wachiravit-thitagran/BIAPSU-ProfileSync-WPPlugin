@@ -25,7 +25,7 @@ final class MCPTest extends TestCase {
 	protected function setUp(): void {
 		$GLOBALS['mock_ability_categories'] = array();
 		$GLOBALS['mock_abilities']          = array();
-		$GLOBALS['wp_user_meta']            = array();
+		$GLOBALS['__usermeta']               = array();
 	}
 
 	public function test_registers_profilesync_abilities(): void {
@@ -38,8 +38,8 @@ final class MCPTest extends TestCase {
 	}
 
 	public function test_get_user_state_does_not_expose_secrets(): void {
-		$GLOBALS['wp_user_meta'][42][ Sync_Controller::STATE_META ] = 'ready';
-		$GLOBALS['wp_user_meta'][42][ Sync_Controller::ERROR_META ] = '';
+		$GLOBALS['__usermeta'][42][ Sync_Controller::STATE_META ] = 'ready';
+		$GLOBALS['__usermeta'][42][ Sync_Controller::ERROR_META ] = '';
 
 		$result = MCP::get_user_state( array( 'user_id' => 42 ) );
 
