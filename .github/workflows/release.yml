@@ -31,6 +31,19 @@ jobs:
   release:
     if: ${{ !contains(github.event.head_commit.message, '[skip release]') }}
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -72,6 +85,7 @@ jobs:
         with:
           php-version: '8.2'
           coverage: none
+          tools: composer, wp-cli
 
       - name: Install runtime dependencies (no dev)
         run: composer install --no-dev --optimize-autoloader --no-interaction
@@ -103,6 +117,31 @@ jobs:
           zip -rq "$GITHUB_WORKSPACE/dist/biapsu-profilesync.zip" biapsu-profilesync
           cd "$GITHUB_WORKSPACE"
           ls -la dist
+
+      - name: Validate packaged ZIP in clean WordPress
+        env:
+          NEXT: ${{ steps.ver.outputs.next }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/release-wp
+          mkdir -p /tmp/release-wp
+          cd /tmp/release-wp
+
+          wp core download --allow-root
+          wp config create --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1 --allow-root
+          wp core install --url=http://localhost --title="Release Validation" --admin_user=admin --admin_password=admin --admin_email=admin@example.test --skip-email --allow-root
+
+          wp plugin install "$GITHUB_WORKSPACE/dist/biapsu-profilesync.zip" --activate --force --allow-root
+          wp plugin is-active biapsu-profilesync --allow-root
+
+          installed="$(wp plugin get biapsu-profilesync --field=version --allow-root)"
+          test "$installed" = "$NEXT"
+
+          wp plugin deactivate biapsu-profilesync --allow-root
+          wp plugin activate biapsu-profilesync --allow-root
+          wp plugin is-active biapsu-profilesync --allow-root
+
+          wp eval 'echo "Packaged ProfileSync plugin loaded successfully.\n";' --allow-root
 
       - name: Publish GitHub Release with assets
         env:
