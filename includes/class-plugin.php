@@ -42,6 +42,9 @@ final class Plugin {
 	 */
 	private $volunteer_status;
 
+	/** @var Account_Linking */
+	private $account_linking;
+
 	/**
 	 * Front-end (choice page renderer).
 	 *
@@ -68,6 +71,7 @@ final class Plugin {
 		$this->settings         = new Settings();
 		$client                 = new Platform_Client( $this->settings );
 		$this->volunteer_status = new Volunteer_Status( $this->settings, $client );
+		$this->account_linking = new Account_Linking( $this->settings );
 		$this->frontend         = new Frontend( $this->settings );
 		$this->admin            = new Admin_Settings( $this->settings, $client );
 	}
@@ -80,6 +84,7 @@ final class Plugin {
 	public function hooks() {
 		$this->settings->maybe_set_defaults();
 		$this->volunteer_status->hooks();
+		$this->account_linking->hooks();
 		$this->frontend->hooks();
 		$this->init_updater();
 
