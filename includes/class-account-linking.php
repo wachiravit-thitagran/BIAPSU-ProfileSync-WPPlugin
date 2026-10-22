@@ -139,7 +139,7 @@ final class Account_Linking {
 		$provider_id = is_object( $provider ) && method_exists( $provider, 'id' ) ? $provider->id() : '';
 		if ( 'google' === $provider_id && $this->settings->get( 'enabled' ) ) {
 			$destination = wp_validate_redirect( (string) $return_to, home_url( '/' ) );
-			return add_query_arg( 'return_to', $destination, $this->choice_url() );
+			return add_query_arg( 'return_to', rawurlencode( $destination ), $this->choice_url() );
 		}
 		if ( 'oidc' !== $provider_id || ! $this->start_session() ) {
 			return $return_to;
