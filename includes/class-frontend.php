@@ -41,6 +41,7 @@ class Frontend {
 	public function hooks() {
 		add_shortcode( self::SHORTCODE, array( $this, 'render' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'maybe_enqueue' ) );
+		add_action( 'template_redirect', array( $this, 'maybe_continue' ), 30 );
 	}
 
 	/**
@@ -79,11 +80,49 @@ class Frontend {
 			return '<div class="biapsu-card"><p>' . esc_html__( 'Please log in to continue.', 'biapsu-profilesync' ) . '</p></div>';
 		}
 
-		// Compatibility only for old /profile-sync/ links. The consent form is
-		// retired: status lookup and optional questions now run in Authorizenter
-		// and never copy platform profile fields into WordPress.
-		return '<div class="biapsu-card"><p>' . esc_html__( 'Your account is ready. You may continue.', 'biapsu-profilesync' ) . '</p>'
-			. '<p><a class="biapsu-btn biapsu-btn--ghost" href="' . esc_url( home_url( '/' ) ) . '">' . esc_html__( 'Continue', 'biapsu-profilesync' ) . '</a></p></div>';
+		$user_id = get_current_user_id();
+		$link    = new Account_Linking( $this->settings );
+		$destination = isset( $_GET['return_to'] ) ? wp_validate_redirect( esc_url_raw( wp_unslash( $_GET['return_to'] ) ), home_url( '/' ) ) : home_url( '/' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Return destination only.
+		$continue = '<p><a class="biapsu-btn biapsu-btn--ghost" href="' . esc_url( $destination ) . '">' . esc_html__( 'Continue', 'biapsu-profilesync' ) . '</a></p>';
+
+		if ( $link->is_linked( $user_id ) ) {
+			return '<div class="biapsu-card"><p>' . esc_html__( 'บัญชีแพลตฟอร์มพุทธธรรมเชื่อมต่อแล้ว', 'biapsu-profilesync' ) . '</p>' . $continue . '</div>';
+		}
+		if ( ! $link->eligible( $user_id ) || ! $this->settings->get( 'enabled' ) ) {
+			return '<div class="biapsu-card">' . $continue . '</div>';
+		}
+
+		$action_url = admin_url( 'admin-post.php' );
+		$nonce = wp_create_nonce( 'biapsu_profilesync_link_' . $user_id );
+		return '<div class="biapsu-card">'
+			. '<h2>' . esc_html__( 'เชื่อมต่อบัญชีแพลตฟอร์มพุทธธรรม', 'biapsu-profilesync' ) . '</h2>'
+			. '<p>' . esc_html__( 'ระบบจะให้ท่านเข้าสู่ระบบแพลตฟอร์มพุทธธรรม เพื่อยืนยันและเชื่อมต่อกับบัญชี Google ที่ใช้อยู่', 'biapsu-profilesync' ) . '</p>'
+			. '<form method="post" action="' . esc_url( $action_url ) . '">'
+			. '<input type="hidden" name="action" value="' . esc_attr( Account_Linking::START_ACTION ) . '" />'
+			. '<input type="hidden" name="_wpnonce" value="' . esc_attr( $nonce ) . '" />'
+			. '<input type="hidden" name="return_to" value="' . esc_attr( $destination ) . '" />'
+			. '<button type="submit" class="biapsu-btn biapsu-btn--primary">' . esc_html__( 'เชื่อมต่อบัญชีแพลตฟอร์มพุทธธรรม', 'biapsu-profilesync' ) . '</button>'
+			. '</form>' . $continue . '</div>';
+	}
+
+	/**
+	 * Keep the original destination for No answers or already-linked users.
+	 * Google first-time Yes answers remain on the consent-based linking page.
+	 */
+	public function maybe_continue() {
+		if ( ! is_user_logged_in() || ! is_page( (int) $this->settings->get( 'choice_page_id' ) ) || ! isset( $_GET['return_to'] ) ) {
+			return;
+		}
+		$link = new Account_Linking( $this->settings );
+		if ( $link->eligible( get_current_user_id() ) && ! $link->is_linked( get_current_user_id() ) && $this->settings->get( 'enabled' ) ) {
+			return;
+		}
+		$destination = wp_validate_redirect( esc_url_raw( wp_unslash( $_GET['return_to'] ) ), home_url( '/' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Validated redirect.
+		if ( get_permalink( (int) $this->settings->get( 'choice_page_id' ) ) === $destination ) {
+			$destination = home_url( '/' );
+		}
+		wp_safe_redirect( $destination );
+		exit;
 	}
 
 	/**

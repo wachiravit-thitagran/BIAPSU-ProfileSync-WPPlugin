@@ -41,7 +41,8 @@ class PluginTest extends TestCase {
 		
 		$this->assertContains( 'authorizenter_login_success', array_column( $GLOBALS['__actions'], 'tag' ) );
 		$this->assertContains( 'authorizenter_questions', array_column( $GLOBALS['__filters'], 'tag' ) );
-		$this->assertNotContains( 'template_redirect', array_column( $GLOBALS['__actions'], 'tag' ) );
+		$this->assertContains( 'template_redirect', array_column( $GLOBALS['__actions'], 'tag' ) );
+		$this->assertContains( 'admin_post_biapsu_profilesync_start_link', array_column( $GLOBALS['__actions'], 'tag' ) );
 		$this->assertNotContains( 'admin_post_biapsu_profilesync_decision', array_column( $GLOBALS['__actions'], 'tag' ) );
 	}
 

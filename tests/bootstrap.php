@@ -35,6 +35,7 @@ require $inc . 'class-platform-client.php';
 require $inc . 'class-profile-mapper.php';
 require $inc . 'class-sync-controller.php';
 require $inc . 'class-volunteer-status.php';
+require $inc . 'class-account-linking.php';
 require $inc . 'class-frontend.php';
 require $inc . 'class-admin-settings.php';
 require $inc . 'class-github-updater.php';

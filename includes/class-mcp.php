@@ -38,7 +38,7 @@ final class MCP {
 			'biapsu-profilesync',
 			array(
 				'label'       => 'BIA PSU ProfileSync',
-				'description' => 'User profile synchronization status, readiness, and configuration information.',
+				'description' => 'Consent-based BIA volunteer question and OIDC account-link status.',
 			)
 		);
 	}
@@ -72,10 +72,32 @@ final class MCP {
 		);
 
 		wp_register_ability(
+			'biapsu-profilesync/get-link-status',
+			array(
+				'label'               => 'Get BIA Platform Link Status',
+				'description'         => 'Read volunteer answer and verified OIDC link status without identities or secrets.',
+				'category'            => 'biapsu-profilesync',
+				'input_schema'        => array(
+					'type'       => 'object',
+					'properties' => array(
+						'user_id' => array(
+							'type'    => 'integer',
+							'minimum' => 1,
+						),
+					),
+					'required'   => array( 'user_id' ),
+				),
+				'execute_callback'    => array( __CLASS__, 'get_link_status' ),
+				'permission_callback' => array( __CLASS__, 'can_read_user_state' ),
+				'meta'                => self::meta(),
+			)
+		);
+
+		wp_register_ability(
 			'biapsu-profilesync/get-status',
 			array(
 				'label'               => 'Get ProfileSync Status',
-				'description'         => 'Retrieves synchronization readiness and non-sensitive configuration information without exposing credentials or secrets.',
+				'description'         => 'Returns account-linking configuration without secrets or API key.',
 				'category'            => 'biapsu-profilesync',
 				'input_schema'        => array(
 					'type'       => 'object',
@@ -97,7 +119,7 @@ final class MCP {
 	 * @return bool
 	 */
 	public static function can_read_user_state( array $input ) {
-		$user_id = (int) $input['user_id'];
+		$user_id = (int) ( $input['user_id'] ?? 0 );
 
 		return get_current_user_id() === $user_id || current_user_can( 'list_users' );
 	}
@@ -119,22 +141,38 @@ final class MCP {
 	}
 
 	/**
+	 * Read the volunteer answer and linked OIDC identity status.
+	 *
+	 * @param array<string,mixed> $input Ability input, containing user_id.
+	 * @return array<string,mixed>
+	 */
+	public static function get_link_status( array $input ) {
+		$user_id = (int) ( $input['user_id'] ?? 0 );
+		$answers = get_user_meta( $user_id, 'authorizenter_answers', true );
+		$answer = is_array( $answers ) && isset( $answers['is_bia_volunteer'] ) ? (string) $answers['is_bia_volunteer'] : '';
+		$link = new Account_Linking( Plugin::instance()->settings() );
+		$status = $link->is_linked( $user_id ) ? 'linked' : ( 'ใช่' === $answer ? 'available' : ( '' === $answer ? 'unanswered' : 'not_applicable' ) );
+		return array(
+			'user_id' => $user_id,
+			'volunteer_answer' => $answer,
+			'link_status' => $status,
+			'provider' => 'oidc',
+		);
+	}
+
+	/**
 	 * Return non-secret plugin configuration status.
 	 *
 	 * @return array<string,mixed>
 	 */
 	public static function get_status() {
 		$settings = Plugin::instance()->settings();
-		$platform = (array) $settings->get( 'platform' );
-
-		unset( $platform['api_key'] );
-
 		return array(
-			'enabled'        => (bool) $settings->get( 'enabled' ),
-			'configured'     => (bool) $settings->is_configured(),
-			'choice_page_id' => (int) $settings->get( 'choice_page_id' ),
-			'platform'       => $platform,
-			'fields'         => (array) $settings->get( 'fields' ),
+			'enabled'                   => (bool) $settings->get( 'enabled' ),
+			'flow'                      => 'google_question_then_oidc_link',
+			'oidc_provider'             => 'oidc',
+			'platform_api_key_required' => false,
+			'choice_page_id'            => (int) $settings->get( 'choice_page_id' ),
 		);
 	}
 

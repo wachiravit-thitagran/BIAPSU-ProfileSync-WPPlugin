@@ -188,6 +188,20 @@ function get_user_by( $field, $value ) {
 	return false;
 }
 
+function get_users( $args = array() ) {
+	$found = array();
+	foreach ( $GLOBALS['__users'] as $id => $user ) {
+		if ( isset( $args['meta_key'] ) && get_user_meta( $id, $args['meta_key'], true ) !== ( $args['meta_value'] ?? '' ) ) {
+			continue;
+		}
+		$found[] = isset( $args['fields'] ) && 'ids' === $args['fields'] ? $id : $user;
+		if ( isset( $args['number'] ) && count( $found ) >= (int) $args['number'] ) {
+			break;
+		}
+	}
+	return $found;
+}
+
 function wp_update_user( $data ) {
 	$id = isset( $data['ID'] ) ? (int) $data['ID'] : 0;
 	if ( ! isset( $GLOBALS['__users'][ $id ] ) ) {
@@ -247,6 +261,11 @@ function wp_safe_redirect( $location, $status = 302 ) {
 	throw new Exception('wp_safe_redirect: ' . $location);
 }
 function wp_login_url( $redirect = '' ) { return 'https://example.test/wp-login.php'; }
+function wp_validate_redirect( $location, $fallback = '' ) {
+	$host = parse_url( $location, PHP_URL_HOST );
+	return ! $host || 'example.test' === strtolower( $host ) ? $location : $fallback;
+}
+
 function check_admin_referer( $action = -1, $query_arg = '_wpnonce' ) { return true; }
 function wp_create_nonce( $action = -1 ) { return 'nonce-' . $action; }
 function wp_verify_nonce( $nonce, $action = -1 ) { return 1; }
@@ -334,7 +353,7 @@ function trailingslashit( $string ) { return rtrim( (string) $string, '/\\' ) . 
 function untrailingslashit( $string ) { return rtrim( (string) $string, '/\\' ); }
 function add_query_arg( $key, $value = null, $url = null ) {
 	// Support add_query_arg( $key, $value, $url ).
-	$query = is_array( $key ) ? http_build_query( $key ) : rawurlencode( (string) $key ) . '=' . rawurlencode( (string) $value );
+	$query = is_array( $key ) ? implode( '&', array_map( static function ( $k, $v ) { return $k . '=' . $v; }, array_keys( $key ), array_values( $key ) ) ) : $key . '=' . $value;
 	$url   = is_array( $key ) ? (string) $value : (string) $url;
 	return $url . ( false === strpos( $url, '?' ) ? '?' : '&' ) . $query;
 }
