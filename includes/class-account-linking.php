@@ -102,7 +102,7 @@ final class Account_Linking {
 		$return_to   = add_query_arg(
 			array(
 				'biapsu_link' => $token,
-				'return_to'   => $destination,
+				'return_to'   => rawurlencode( $destination ),
 			),
 			$page
 		);
@@ -117,7 +117,7 @@ final class Account_Linking {
 		$authorize_url = add_query_arg(
 			array(
 				'context'   => 'default',
-				'return_to' => $return_to,
+				'return_to' => rawurlencode( $return_to ),
 			),
 			rest_url( 'authorizenter/v1/authorize/oidc' )
 		);
