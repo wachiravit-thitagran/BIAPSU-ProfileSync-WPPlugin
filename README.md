@@ -1,48 +1,25 @@
-# BIA PSU ProfileSync — Volunteer Status Check
+# BIA PSU ProfileSync — Google Volunteer Question + OIDC Linking
 
-This **existing WordPress plugin** now answers a single question during Authorizenter Google sign-in: `is_bia_volunteer` ("เคยเป็นอาสาสมัครบนแพลตฟอร์มพุทธธรรมหรือไม่?").
+The plugin no longer queries BIA Platform member profiles via API Key. Instead, it uses Authorizenter's existing required radio question `is_bia_volunteer` (ใช่/ไม่ใช่) when a user signs in through Google.
 
-It does **not** synchronize profile fields, display a separate sync-consent form, or change Tutor LMS.
+A **ไม่ใช่** answer continues to the original learning destination. A **ใช่** answer presents the **เชื่อมต่อบัญชีแพลตฟอร์มพุทธธรรม** button on the existing `[biapsu_profilesync]` page; linking is optional.
 
-## New sign-in behavior
+The button starts Authorizenter's existing `oidc` OAuth/OIDC flow. A nonce-authorized, time-limited intent is bound to the original WordPress auth cookie and the OAuth callback's authenticated return URL. The platform subject is linked to that same WordPress user only after a successful OIDC login. An OIDC subject already owned by another user, or a conflicting existing link, is rejected. No profile fields are imported.
 
-1. After a successful **Google** login, Authorizenter supplies a verified email.
-2. If the user already answered `is_bia_volunteer`, keep their answer; no API request.
-3. Otherwise, ProfileSync calls the existing Django `/api/profile/?email=...` endpoint with a server-side API key.
-4. Explicit match for the *same verified email* → save `is_bia_volunteer=ใช่` via Authorizenter's Questions service and skip its question form.
-5. Explicit `Volunteer not found` → let Authorizenter ask its existing **ใช่ / ไม่ใช่** question.
-6. Missing API configuration, network error, unexpected HTTP response or email mismatch → record **unavailable**, never claim non-membership or block the learner. Retry at their next Google sign-in.
+## Configuration
 
-For non-Google providers, do not call the API and do not ask the Google-only volunteer question. Other Authorizenter questions remain unaffected.
+Enable Authorizenter Google and OIDC providers in the default context. Configure the existing `is_bia_volunteer` question as required radio (ใช่/ไม่ใช่). Enable Account Linking in ProfileSync Admin. Keep the existing `/profile-sync/` page containing `[biapsu_profilesync]`. No Platform API Key is needed.
 
-Authorizenter retains all original `return_to`, context redirect, authentication, and WordPress session behavior. The fallback destination remains the site's home page.
+## MCP Abilities
 
-The API response is consumed as a **boolean membership check**; no name, phone, affiliation, department, position, location, user type, or email changes are written to WordPress.
+- `biapsu-profilesync/get-status` (admin, read-only): enabled, flow, OIDC provider, choice page, no API dependency.
+- `biapsu-profilesync/get-link-status` (self or user-listing administrator, read-only): volunteer answer and OIDC link status without disclosing subject IDs, credentials or tokens.
+- `biapsu-profilesync/get-user-state`: legacy compatibility, read-only.
 
-Existing `authorizenter_answers` values are preserved. Positive automatic answers also record `biapsu_volunteer_answer_source=platform_api`. The previous shortcode `[biapsu_profilesync]` remains as a harmless Continue link for old bookmarks, and legacy `biapsu_sync_state` flags are ignored.
-
-## Deployment settings
-
-In **WordPress Admin → Volunteer Check**:
-
-- Enable volunteer status check.
-- Set Platform base URL to `https://bia.psu.ac.th`.
-- Leave Profile endpoint blank to use `https://bia.psu.ac.th/api/profile/`.
-- Enter the platform's existing **API Key** securely in WordPress Admin; it is encrypted before storage.
-- Keep TLS verification enabled; use **Test connection** to verify the API key and endpoint.
-
-**Without an API key, automatic detection is unavailable.** Google sign-in remains accessible; no membership result is fabricated. Do not insert any secret in Git, chat or logs.
-
-The platform endpoint contract is `GET /api/profile/?email=...` with `Authorization: Api-Key <secret>`. Only `200, success:true, data.email == verified Google email` proves membership. Only `400, success:false, message:"Volunteer not found"` proves an explicit negative. All other outcomes are **unknown**.
-
-The Authorizenter question `is_bia_volunteer` must be enabled as a required radio question with exactly `ใช่` and `ไม่ใช่` values. The integration filters it by actual login provider, so it only interrupts Google sign-ins after a definite negative result.
+Starting the OAuth flow is intentionally a **browser-only POST with WordPress nonce and active authentication**. It is not a mutating MCP ability.
 
 ## Testing
 
-`composer test` for isolated PHP unit tests, `composer lint` for WordPress Coding Standards, and GitHub Actions CI/WP Integration for PHP 8.0–8.4 and clean WordPress plugin lifecycle.
+Run `composer test`, `composer lint` and `composer analyze`. Verify the complete OAuth flow on staging with both matching and different provider emails, rejected conflicting subjects, cancel/failure paths, and original return destinations. **Do not deploy without an end-to-end browser test.**
 
-The new runtime uses `Volunteer_Status` in `includes/class-volunteer-status.php` and `Platform_Client::check_membership()`. Legacy sync classes remain in the package for compatibility but their sync/consent hooks are not registered.
-
-## Self-hosted updates
-
-GitHub Releases in `wachiravit-thitagran/BIAPSU-ProfileSync-WPPlugin` produce `biapsu-profilesync.zip`. The plugin slug and existing settings option are unchanged to support upgrades.
+Legacy ProfileSync profile-mapping code remains in the package but is not registered at runtime.
