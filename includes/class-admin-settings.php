@@ -14,10 +14,18 @@ class Admin_Settings {
 	const SLUG  = 'biapsu-profilesync';
 	const NONCE = 'biapsu_profilesync_save';
 
-	/** @var Settings */
+	/**
+	 * Plugin settings.
+	 *
+	 * @var Settings
+	 */
 	private $settings;
 
-	/** @param Settings $settings Plugin settings. */
+	/**
+	 * Construct the settings admin controller.
+	 *
+	 * @param Settings $settings Plugin settings.
+	 */
 	public function __construct( Settings $settings ) {
 		$this->settings = $settings;
 	}
@@ -53,7 +61,7 @@ class Admin_Settings {
 			add_settings_error( self::SLUG, 'saved', __( 'Settings saved.', 'biapsu-profilesync' ), 'updated' );
 		}
 
-		$enabled = (bool) $this->settings->get( 'enabled' );
+		$enabled  = (bool) $this->settings->get( 'enabled' );
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'BIA PSU Account Linking', 'biapsu-profilesync' ); ?></h1>
