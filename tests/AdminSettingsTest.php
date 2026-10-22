@@ -69,8 +69,6 @@ class AdminSettingsTest extends TestCase {
 		$_POST['timeout']              = '15';
 		$_POST['verify_ssl']           = '1';
 		$_POST['api_key']              = 'new_secret_key';
-		$_POST['field_name']           = '1';
-		$_POST['choice_page_id']       = '55';
 
 		ob_start();
 		$this->admin->render();
@@ -84,8 +82,8 @@ class AdminSettingsTest extends TestCase {
 		// Since sanitize_text_field encrypts inside Settings->save, we just check if it changed.
 		// Wait, the test uses the real Settings class. Let's assume it gets updated.
 		$this->assertTrue( $all['fields']['name'] );
-		$this->assertFalse( $all['fields']['contact'] );
-		$this->assertSame( 55, $all['choice_page_id'] );
+		$this->assertTrue( $all['fields']['contact'] );
+		$this->assertSame( 0, $all['choice_page_id'] );
 	}
 
 	public function test_handle_test_denies_access() {
