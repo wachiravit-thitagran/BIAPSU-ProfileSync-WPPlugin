@@ -1,152 +1,48 @@
-# BIA PSU ProfileSync
+# BIA PSU ProfileSync — Volunteer Status Check
 
-A WordPress plugin that intercepts the **first-time login** completed through
-[Authorizenter](https://github.com/wachiravit-thitagran/Authorizenter) and asks
-the user whether to sync their profile from the **Buddhadhamma (พุทธธรรม)
-platform**.
+This **existing WordPress plugin** now answers a single question during Authorizenter Google sign-in: `is_bia_volunteer` ("เคยเป็นอาสาสมัครบนแพลตฟอร์มพุทธธรรมหรือไม่?").
 
-> ท่านเคยลงทะเบียนแพลตฟอร์มพุทธธรรมแล้ว ต้องการซิงค์ข้อมูลจากแพลตฟอร์มหรือไม่
+It does **not** synchronize profile fields, display a separate sync-consent form, or change Tutor LMS.
 
-- **Sync** → fetch `first_name`, `last_name` and other selected fields from the
-  platform (server-to-server OAuth2) and apply them to the new WordPress user.
-- **Skip** → keep the standard Authorizenter flow and data untouched.
+## New sign-in behavior
 
-Only new users ever see the prompt.
+1. After a successful **Google** login, Authorizenter supplies a verified email.
+2. If the user already answered `is_bia_volunteer`, keep their answer; no API request.
+3. Otherwise, ProfileSync calls the existing Django `/api/profile/?email=...` endpoint with a server-side API key.
+4. Explicit match for the *same verified email* → save `is_bia_volunteer=ใช่` via Authorizenter's Questions service and skip its question form.
+5. Explicit `Volunteer not found` → let Authorizenter ask its existing **ใช่ / ไม่ใช่** question.
+6. Missing API configuration, network error, unexpected HTTP response or email mismatch → record **unavailable**, never claim non-membership or block the learner. Retry at their next Google sign-in.
 
-## How it works
+For non-Google providers, do not call the API and do not ask the Google-only volunteer question. Other Authorizenter questions remain unaffected.
 
-| Step | Hook / mechanism | What happens |
-|------|------------------|--------------|
-| 1. Provision | `authorizenter_user_provisioned` | New user tagged `await`; login email stored. |
-| 2. Arm at login | `authorizenter_login_success` | Evaluated **once**: if no required questions remain, arm now (`ready`); else stay `await`. |
-| 3. Arm after questions | `authorizenter_questions_completed` | Fired by Authorizenter when the question form is finished → arm (`ready`). |
-| 4. Gate | `template_redirect` @ priority **20** | `ready` users are diverted to the choice page; original destination remembered. Reads our own flag only. |
-| 5. Decision | `admin-post.php` (`biapsu_profilesync_decision`, nonce-protected) | `sync` fetches + applies the platform profile; `skip` keeps existing data. Then continue to the original destination. |
+Authorizenter retains all original `return_to`, context redirect, authentication, and WordPress session behavior. The fallback destination remains the site's home page.
 
-Because the WP user is already created by Authorizenter, **Skip** is a true
-no-op — the original flow is fully preserved. **Sync** enriches/overwrites the
-selected fields with the richer platform data.
+The API response is consumed as a **boolean membership check**; no name, phone, affiliation, department, position, location, user type, or email changes are written to WordPress.
 
-### Plays nicely with Authorizenter's question form
+Existing `authorizenter_answers` values are preserved. Positive automatic answers also record `biapsu_volunteer_answer_source=platform_api`. The previous shortcode `[biapsu_profilesync]` remains as a harmless Continue link for old bookmarks, and legacy `biapsu_sync_state` flags are ignored.
 
-ProfileSync is **event-driven**: it only arms the sync prompt once Authorizenter
-reports the question form is done, via the official
-`authorizenter_questions_completed` action. (At login it also checks
-`Questions::has_pending_required()` a single time, so users with no questions are
-armed immediately.) The `template_redirect` gate then merely reads our own
-`ready` flag — it never polls the question state on every page load. Ordering is
-always:
+## Deployment settings
 
-```
-login → Authorizenter question form (if any) → ProfileSync sync prompt → destination
-```
+In **WordPress Admin → Volunteer Check**:
 
-The question form is never intercepted or broken — the sync prompt is chained
-after it. The login-time evaluation can be overridden with the
-`biapsu_profilesync_defer_to_questions` filter.
+- Enable volunteer status check.
+- Set Platform base URL to `https://bia.psu.ac.th`.
+- Leave Profile endpoint blank to use `https://bia.psu.ac.th/api/profile/`.
+- Enter the platform's existing **API Key** securely in WordPress Admin; it is encrypted before storage.
+- Keep TLS verification enabled; use **Test connection** to verify the API key and endpoint.
 
-## Server-to-server data fetch
+**Without an API key, automatic detection is unavailable.** Google sign-in remains accessible; no membership result is fabricated. Do not insert any secret in Git, chat or logs.
 
-The plugin uses an API Key to authenticate requests to the platform's profile
-endpoint.
+The platform endpoint contract is `GET /api/profile/?email=...` with `Authorization: Api-Key <secret>`. Only `200, success:true, data.email == verified Google email` proves membership. Only `400, success:false, message:"Volunteer not found"` proves an explicit negative. All other outcomes are **unknown**.
 
-### Expected platform contract
+The Authorizenter question `is_bia_volunteer` must be enabled as a required radio question with exactly `ใช่` and `ไม่ใช่` values. The integration filters it by actual login provider, so it only interrupts Google sign-ins after a definite negative result.
 
-**Profile** — `GET` with `Authorization: Api-Key <api_key>`:
+## Testing
 
-```
-<profile_endpoint>?email=<email>
-→ 200 { "found": true, "profile": { "first_name": "...", "last_name": "...",
-        "phone_number": "...", "affiliation": "...", "department": "...",
-        "position": "...", "location": "...", "user_type": "...",
-        "user_type_description": "...", "join_reason": "..." } }
-→ 404 { "found": false }
-```
+`composer test` for isolated PHP unit tests, `composer lint` for WordPress Coding Standards, and GitHub Actions CI/WP Integration for PHP 8.0–8.4 and clean WordPress plugin lifecycle.
 
-> The platform here is the Django *volunteer-digitizing-app*. Expose a small
-> DRF view that authenticates the API key and returns the
-> `Volunteer` fields above, filtered by `email`.
+The new runtime uses `Volunteer_Status` in `includes/class-volunteer-status.php` and `Platform_Client::check_membership()`. Legacy sync classes remain in the package for compatibility but their sync/consent hooks are not registered.
 
-## Field mapping
+## Self-hosted updates
 
-| Group | Platform field → WordPress |
-|-------|----------------------------|
-| Name | `first_name`, `last_name` → core fields + `display_name` |
-| Contact | `phone_number` → user meta `biapsu_phone_number`; `email` → only if WP email empty |
-| Affiliation | `affiliation`, `department`, `position`, `location` → `biapsu_*` user meta |
-| User type | `user_type`, `user_type_description`, `join_reason` → `biapsu_*` user meta |
-
-Each group can be toggled in **ProfileSync**.
-
-## Installation
-
-1. Copy/symlink this folder into `wp-content/plugins/biapsu-profilesync`.
-2. Activate **Authorizenter Core** first, then **BIA PSU ProfileSync**.
-3. Log in to your WordPress Admin.
-4. Go to **ProfileSync** in the left sidebar menu.
-5. Under **Platform Connection**, configure the API endpoints and the **API Key** for server-to-server communication.
-6. Click **Test connection to the platform** to ensure your credentials are valid.
-
-## Updates
-
-The plugin updates **itself** from this repository's **GitHub Releases** — the
-WordPress *Plugins* screen shows an available update whenever a release tag newer
-than the installed version exists, and installs it like any other plugin.
-
-- The release workflow (`.github/workflows/release.yml`) builds and attaches
-  `biapsu-profilesync.zip` on every push to `main`. The updater prefers that
-  asset over GitHub's source zipball, so the installed folder stays
-  `biapsu-profilesync`.
-- The default repository is `wachiravit-thitagran/BIAPSU-ProfileSync-WPPlugin`,
-  and it must match the `Plugin URI` header — a typo there fails silently,
-  because the GitHub API answers `404` exactly as it would for a repository with
-  no releases. `GithubUpdaterTest` pins the two together.
-- Release lookups are cached for six hours (a failure for one), so a private
-  repository, a rate limit or an offline site costs nothing on the Plugins
-  screen and never raises a notice.
-
-Point it at a fork in `wp-config.php`, or filter it:
-
-```php
-define( 'BIAPSU_PROFILESYNC_GITHUB_REPO', 'your-org/your-repo' ); // '' disables updates
-add_filter( 'biapsu_profilesync_github_repo', fn() => 'your-org/your-repo' );
-```
-
-## Extensibility
-
-| Hook | Type | Purpose |
-|------|------|---------|
-| `biapsu_profilesync_should_prompt` | filter | Enable/disable the prompt per user at runtime. |
-| `biapsu_profilesync_defer_to_questions` | filter | Override whether to wait for Authorizenter's required questions. |
-| `biapsu_profilesync_platform_profile` | filter | Modify the raw profile array from the platform. |
-| `biapsu_profilesync_github_repo` | filter | Repository (`owner/repo`) checked for updates; `''` disables them. |
-| `biapsu_profilesync_github_request_args` | filter | `wp_remote_get()` args for the GitHub API (e.g. add an auth token). |
-| `biapsu_profilesync_applied` | action | Fires after fields are applied (`$user, $profile, $applied`). |
-| `biapsu_profilesync_decided` | action | Fires after the decision (`$user, 'sync'|'skip'`). |
-| `biapsu_profilesync_finish_url` | filter | Change the final redirect after the decision. |
-
-## Security notes
-
-- **API Key:** API keys are encrypted before being saved to the WordPress database. They are only decrypted in-memory during a request.
-- The decision form is nonce-protected and bound to the current user ID.
-- Email sync never overwrites a non-empty WP email (prevents account hijacking).
-
-## Development & testing
-
-Pure PHPUnit unit tests with in-memory WordPress stubs (no live WordPress
-needed), mirroring the Authorizenter setup.
-
-```bash
-composer install
-composer test      # PHPUnit
-composer lint      # PHPCS (WordPress Coding Standards)
-composer analyze   # PHPStan (level 5)
-composer syntax    # php -l on all files
-```
-
-GitHub Actions (`.github/workflows/ci.yml`) runs four jobs on every push/PR:
-PHP syntax (8.0–8.3), PHPCS, PHPStan, and PHPUnit (8.0/8.2/8.3).
-
-## License
-
-GPL-2.0-or-later.
+GitHub Releases in `wachiravit-thitagran/BIAPSU-ProfileSync-WPPlugin` produce `biapsu-profilesync.zip`. The plugin slug and existing settings option are unchanged to support upgrades.
