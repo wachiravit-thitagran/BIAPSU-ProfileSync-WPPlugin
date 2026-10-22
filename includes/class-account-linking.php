@@ -19,16 +19,30 @@ final class Account_Linking {
 	const LINK_META          = 'authorizenter_link_oidc';
 	const INTENT_TTL         = 600;
 
-	/** @var Settings */
+	/**
+	 * Plugin settings.
+	 *
+	 * @var Settings
+	 */
 	private $settings;
 
-	/** @var int */
+	/**
+	 * WordPress user validated for this exact OAuth callback.
+	 *
+	 * @var int
+	 */
 	private $validated_user_id = 0;
 
-	/** @var string */
+	/**
+	 * Verified OIDC subject held until Authorizenter login succeeds.
+	 *
+	 * @var string
+	 */
 	private $validated_subject = '';
 
 	/**
+	 * Construct the account linking service.
+	 *
 	 * @param Settings $settings Plugin settings.
 	 */
 	public function __construct( Settings $settings ) {
@@ -43,13 +57,23 @@ final class Account_Linking {
 		add_action( 'authorizenter_login_success', array( $this, 'after_login' ), 5, 3 );
 	}
 
-	/** Whether the user explicitly answered yes in Authorizenter. */
+	/**
+	 * Check whether the user answered Yes.
+	 *
+	 * @param int $user_id WordPress user ID.
+	 * @return bool
+	 */
 	public function eligible( $user_id ) {
 		$answers = get_user_meta( (int) $user_id, 'authorizenter_answers', true );
 		return is_array( $answers ) && isset( $answers['is_bia_volunteer'] ) && 'ใช่' === $answers['is_bia_volunteer'];
 	}
 
-	/** Whether Authorizenter already has a verified provider-subject link. */
+	/**
+	 * Check whether the user has a linked OIDC subject.
+	 *
+	 * @param int $user_id WordPress user ID.
+	 * @return bool
+	 */
 	public function is_linked( $user_id ) {
 		return '' !== (string) get_user_meta( (int) $user_id, self::LINK_META, true );
 	}
@@ -75,7 +99,13 @@ final class Account_Linking {
 		$destination = wp_validate_redirect( esc_url_raw( $destination ), home_url( '/' ) );
 		$token       = bin2hex( random_bytes( 32 ) );
 		$page        = $this->choice_url();
-		$return_to   = add_query_arg( array( 'biapsu_link' => $token, 'return_to' => $destination ), $page );
+		$return_to   = add_query_arg(
+			array(
+				'biapsu_link' => $token,
+				'return_to'   => $destination,
+			),
+			$page
+		);
 
 		$_SESSION[ self::INTENT_SESSION_KEY ] = array(
 			'user_id'       => $user_id,
@@ -168,6 +198,11 @@ final class Account_Linking {
 	/**
 	 * Persist subject only after Authorizenter has completed the OIDC login.
 	 * Never store a profile, token, or email from the second provider.
+	 *
+	 * @param \WP_User $user     Authenticated WordPress user.
+	 * @param string   $provider Authorizenter provider ID.
+	 * @param object   $identity Verified identity.
+	 * @return void
 	 */
 	public function after_login( $user, $provider = '', $identity = null ) {
 		if ( 0 === $this->validated_user_id || 'oidc' !== $provider || ! ( $user instanceof \WP_User ) || $user->ID !== $this->validated_user_id ) {
@@ -186,7 +221,13 @@ final class Account_Linking {
 		$this->validated_subject = '';
 	}
 
-	/** Check unique OIDC subject ownership in WP usermeta. */
+	/**
+	 * Check whether a different user owns the same OIDC subject.
+	 *
+	 * @param int    $user_id The current user ID.
+	 * @param string $subject Verified provider subject.
+	 * @return bool
+	 */
 	private function subject_owned_by_other( $user_id, $subject ) {
 		$users = get_users(
 			array(
@@ -204,7 +245,12 @@ final class Account_Linking {
 		return false;
 	}
 
-	/** Verify original logged-in browser and expiry before account takeover-sensitive mapping. */
+	/**
+	 * Validate source browser session, original login cookie, and expiry.
+	 *
+	 * @param array $intent Session-local pending link request.
+	 * @return bool
+	 */
 	private function valid_intent( array $intent ) {
 		$user_id = (int) ( $intent['user_id'] ?? 0 );
 		$created = (int) ( $intent['created'] ?? 0 );
@@ -229,7 +275,7 @@ final class Account_Linking {
 	/** Choice page URL, reusing the plugin's existing page. */
 	private function choice_url() {
 		$page_id = (int) $this->settings->get( 'choice_page_id' );
-		$url = $page_id ? get_permalink( $page_id ) : '';
+		$url     = $page_id ? get_permalink( $page_id ) : '';
 		return $url ? $url : home_url( '/profile-sync/' );
 	}
 }
