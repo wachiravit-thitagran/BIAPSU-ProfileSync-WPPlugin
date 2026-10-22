@@ -130,6 +130,21 @@ final class MCP {
 		);
 	}
 
+	/** Read a user's self-declared answer and linked identity status. */
+	public static function get_link_status( array $input ) {
+		$user_id = (int) ( $input['user_id'] ?? 0 );
+		$answers = get_user_meta( $user_id, 'authorizenter_answers', true );
+		$answer = is_array( $answers ) && isset( $answers['is_bia_volunteer'] ) ? (string) $answers['is_bia_volunteer'] : '';
+		$link = new Account_Linking( Plugin::instance()->settings() );
+		$status = $link->is_linked( $user_id ) ? 'linked' : ( 'ใช่' === $answer ? 'available' : ( '' === $answer ? 'unanswered' : 'not_applicable' ) );
+		return array(
+			'user_id' => $user_id,
+			'volunteer_answer' => $answer,
+			'link_status' => $status,
+			'provider' => 'oidc',
+		);
+	}
+
 	/**
 	 * Return non-secret plugin configuration status.
 	 *
