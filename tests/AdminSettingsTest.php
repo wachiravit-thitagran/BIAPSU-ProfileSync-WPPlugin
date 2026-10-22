@@ -122,7 +122,7 @@ class AdminSettingsTest extends TestCase {
 		ob_start();
 		$this->admin->render();
 		$html = (string) ob_get_clean();
-		$this->assertStringContainsString( 'Volunteer status', $html );
+		$this->assertStringContainsString( 'Enable volunteer status check', $html );
 		$this->assertStringNotContainsString( 'Fields to sync', $html );
 		$this->assertStringNotContainsString( 'Choice page', $html );
 	}
