@@ -79,6 +79,38 @@ final class AccountLinkingTest extends TestCase {
 		$this->assertStringContainsString( 'return_to=https%3A%2F%2Fexample.test%2Fcourse%2F%3Flesson%3D1%26chapter%3D2', $url );
 	}
 
+	public function test_verified_oidc_subject_links_original_user_even_when_emails_differ(): void {
+		bia_test_make_user( 17, 'google@example.org' );
+		update_user_meta( 17, 'authorizenter_answers', array( 'is_bia_volunteer' => 'ใช่' ) );
+		$service = new Account_Linking( new Settings() );
+		$property = new \ReflectionProperty( Account_Linking::class, 'validated_user_id' );
+		$property->setAccessible( true );
+		$property->setValue( $service, 17 );
+		$identity = (object) array( 'provider' => 'oidc', 'sub' => 'subject-42', 'email' => 'different@example.org' );
+		$target = $service->pre_resolve_user( null, $identity, array() );
+		$this->assertInstanceOf( \WP_User::class, $target );
+		$this->assertSame( 17, $target->ID );
+		$service->after_login( $target, 'oidc', $identity );
+		$this->assertSame( 'subject-42', get_user_meta( 17, Account_Linking::LINK_META, true ) );
+		$this->assertSame( 'google@example.org', get_user_by( 'id', 17 )->user_email );
+	}
+
+	public function test_linking_rejects_oidc_subject_claimed_by_another_user(): void {
+		bia_test_make_user( 17 );
+		bia_test_make_user( 18 );
+		update_user_meta( 17, 'authorizenter_answers', array( 'is_bia_volunteer' => 'ใช่' ) );
+		update_user_meta( 18, Account_Linking::LINK_META, 'taken-subject' );
+		$service = new Account_Linking( new Settings() );
+		$property = new \ReflectionProperty( Account_Linking::class, 'validated_user_id' );
+		$property->setAccessible( true );
+		$property->setValue( $service, 17 );
+		$identity = (object) array( 'provider' => 'oidc', 'sub' => 'taken-subject', 'email' => 'other@example.org' );
+		$result = $service->pre_resolve_user( null, $identity, array() );
+		$this->assertInstanceOf( \WP_Error::class, $result );
+		$this->assertSame( 'biapsu_link_taken', $result->get_error_code() );
+		$this->assertFalse( $service->is_linked( 17 ) );
+	}
+
 	public function test_mcp_registers_read_only_link_status(): void {
 		\BIAPSU\ProfileSync\MCP::register_abilities();
 		$this->assertArrayHasKey( 'biapsu-profilesync/get-link-status', $GLOBALS['mock_abilities'] );
