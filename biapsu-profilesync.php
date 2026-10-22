@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       BIA PSU ProfileSync
  * Plugin URI:        https://github.com/wachiravit-thitagran/BIAPSU-ProfileSync-WPPlugin
- * Description:       After a first-time login through Authorizenter, asks the user whether to sync their profile from the Buddhadhamma (พุทธธรรม) platform. On consent, fetches first name, last name, contact, affiliation and user-type data via a server-to-server OAuth2 (client_credentials) call and applies it to the new WordPress user. On decline, the normal Authorizenter flow is preserved.
+ * Description:       Checks BIA platform volunteer membership by verified Google email after Authorizenter sign-in. Auto-marks a confirmed match, or asks the existing volunteer question if absent. Never syncs profile data; preserves normal redirect.
  * Version:           0.1.0
  * Requires at least: 6.0
  * Requires PHP:      8.0
