@@ -353,7 +353,7 @@ function trailingslashit( $string ) { return rtrim( (string) $string, '/\\' ) . 
 function untrailingslashit( $string ) { return rtrim( (string) $string, '/\\' ); }
 function add_query_arg( $key, $value = null, $url = null ) {
 	// Support add_query_arg( $key, $value, $url ).
-	$query = is_array( $key ) ? http_build_query( $key ) : rawurlencode( (string) $key ) . '=' . rawurlencode( (string) $value );
+	$query = is_array( $key ) ? implode( '&', array_map( static function ( $k, $v ) { return $k . '=' . $v; }, array_keys( $key ), array_values( $key ) ) ) : $key . '=' . $value;
 	$url   = is_array( $key ) ? (string) $value : (string) $url;
 	return $url . ( false === strpos( $url, '?' ) ? '?' : '&' ) . $query;
 }
