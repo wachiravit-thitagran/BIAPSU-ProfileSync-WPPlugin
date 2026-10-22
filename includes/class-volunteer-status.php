@@ -95,5 +95,4 @@ class Volunteer_Status {
 			)
 		);
 	}
-
 }
