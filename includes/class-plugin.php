@@ -42,7 +42,11 @@ final class Plugin {
 	 */
 	private $volunteer_status;
 
-	/** @var Account_Linking */
+	/**
+	 * Consent-based OIDC account-linking service.
+	 *
+	 * @var Account_Linking
+	 */
 	private $account_linking;
 
 	/**
@@ -71,9 +75,9 @@ final class Plugin {
 		$this->settings         = new Settings();
 		$client                 = new Platform_Client( $this->settings );
 		$this->volunteer_status = new Volunteer_Status( $this->settings, $client );
-		$this->account_linking = new Account_Linking( $this->settings );
+		$this->account_linking  = new Account_Linking( $this->settings );
 		$this->frontend         = new Frontend( $this->settings );
-		$this->admin            = new Admin_Settings( $this->settings, $client );
+		$this->admin            = new Admin_Settings( $this->settings );
 	}
 
 	/**
