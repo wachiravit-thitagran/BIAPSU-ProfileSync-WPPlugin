@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       BIA PSU ProfileSync
  * Plugin URI:        https://github.com/wachiravit-thitagran/BIAPSU-ProfileSync-WPPlugin
- * Description:       Checks BIA platform volunteer membership by verified Google email after Authorizenter sign-in. Auto-marks a confirmed match, or asks the existing volunteer question if absent. Never syncs profile data; preserves normal redirect.
+ * Description:       Asks the volunteer question after Google sign-in and securely links consenting users to the Buddhadhamma Platform via Authorizenter OIDC. No Platform API key or profile sync.
  * Version:           0.1.0
  * Requires at least: 6.0
  * Requires PHP:      8.0
