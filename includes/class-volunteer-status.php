@@ -23,16 +23,22 @@ class Volunteer_Status {
 	const SOURCE_META = 'biapsu_volunteer_answer_source'; // platform_api for auto-confirmed matches.
 
 	/**
+	 * Settings storage.
+	 *
 	 * @var Settings
 	 */
 	private $settings;
 
 	/**
+	 * Platform membership API client.
+	 *
 	 * @var Platform_Client
 	 */
 	private $client;
 
 	/**
+	 * Construct the volunteer status bridge.
+	 *
 	 * @param Settings        $settings Settings service.
 	 * @param Platform_Client $client   Platform API client.
 	 */
