@@ -36,11 +36,11 @@ final class Plugin {
 	private $admin;
 
 	/**
-	 * Sync controller (login gate + decision handler).
+	 * Post-Google-login volunteer status check (no data synchronization).
 	 *
-	 * @var Sync_Controller
+	 * @var Volunteer_Status
 	 */
-	private $controller;
+	private $volunteer_status;
 
 	/**
 	 * Front-end (choice page renderer).
@@ -65,12 +65,11 @@ final class Plugin {
 	 * Build collaborators.
 	 */
 	private function __construct() {
-		$this->settings   = new Settings();
-		$client           = new Platform_Client( $this->settings );
-		$mapper           = new Profile_Mapper( $this->settings );
-		$this->controller = new Sync_Controller( $this->settings, $client, $mapper );
-		$this->frontend   = new Frontend( $this->settings );
-		$this->admin      = new Admin_Settings( $this->settings, $client );
+		$this->settings         = new Settings();
+		$client                 = new Platform_Client( $this->settings );
+		$this->volunteer_status = new Volunteer_Status( $this->settings, $client );
+		$this->frontend         = new Frontend( $this->settings );
+		$this->admin            = new Admin_Settings( $this->settings, $client );
 	}
 
 	/**
@@ -80,7 +79,7 @@ final class Plugin {
 	 */
 	public function hooks() {
 		$this->settings->maybe_set_defaults();
-		$this->controller->hooks();
+		$this->volunteer_status->hooks();
 		$this->frontend->hooks();
 		$this->init_updater();
 

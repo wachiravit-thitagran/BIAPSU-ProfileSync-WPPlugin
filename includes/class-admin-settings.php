@@ -59,8 +59,8 @@ class Admin_Settings {
 	 */
 	public function menu() {
 		add_menu_page(
-			__( 'BIA PSU ProfileSync', 'biapsu-profilesync' ),
-			__( 'ProfileSync', 'biapsu-profilesync' ),
+			__( 'BIA PSU Volunteer Check', 'biapsu-profilesync' ),
+			__( 'Volunteer Check', 'biapsu-profilesync' ),
 			'manage_options',
 			self::SLUG,
 			array( $this, 'render' ),
@@ -100,15 +100,6 @@ class Admin_Settings {
 
 		$all['platform'] = $platform;
 
-		$all['fields'] = array(
-			'name'        => ! empty( $_POST['field_name'] ),
-			'contact'     => ! empty( $_POST['field_contact'] ),
-			'affiliation' => ! empty( $_POST['field_affiliation'] ),
-			'user_type'   => ! empty( $_POST['field_user_type'] ),
-		);
-
-		$all['choice_page_id'] = isset( $_POST['choice_page_id'] ) ? (int) $_POST['choice_page_id'] : 0;
-
 		$this->settings->save( $all );
 
 		add_settings_error( self::SLUG, 'saved', __( 'Settings saved.', 'biapsu-profilesync' ), 'updated' );
@@ -125,11 +116,11 @@ class Admin_Settings {
 		}
 		check_admin_referer( 'biapsu_profilesync_test' );
 
-		// To test the API key, we make a profile request with a dummy email.
-		// A 400 or 200 means the API key was accepted, even if the user isn't found.
+		// Probe with an unregistered email. Only an explicit 'Volunteer not found'
+		// response proves the API Key is accepted; other HTTP errors fail.
 		$response = $this->client->fetch_profile( 'test_connection@example.com' );
 
-		if ( is_wp_error( $response ) && $response->get_error_code() !== 'biapsu_not_found' && strpos( $response->get_error_code(), '_http' ) === false ) {
+		if ( is_wp_error( $response ) && 'biapsu_not_found' !== $response->get_error_code() ) {
 			error_log( 'BIAPSU Profile Sync API Test Error: ' . $response->get_error_message() );
 			$status = 'fail';
 			$msg    = $response->get_error_message();
@@ -165,17 +156,16 @@ class Admin_Settings {
 
 		$all      = $this->settings->all();
 		$platform = $all['platform'];
-		$fields   = $all['fields'];
 
 		$test = get_transient( 'biapsu_profilesync_test_result' );
 		if ( $test ) {
 			delete_transient( 'biapsu_profilesync_test_result' );
 		}
 
-		$pages = get_pages();
 		?>
 		<div class="wrap">
-			<h1><?php esc_html_e( 'BIA PSU ProfileSync', 'biapsu-profilesync' ); ?></h1>
+			<h1><?php esc_html_e( 'BIA PSU Volunteer Check', 'biapsu-profilesync' ); ?></h1>
+			<p><?php esc_html_e( 'Automatically records a Yes volunteer answer for Google accounts found in the BIA platform. If not found, Authorizenter asks the existing Yes/No question. API errors never block login. No personal profile data is synchronized.', 'biapsu-profilesync' ); ?></p>
 			<?php settings_errors( self::SLUG ); ?>
 
 			<?php if ( is_array( $test ) ) : ?>
@@ -191,24 +181,11 @@ class Admin_Settings {
 				<h2 class="title"><?php esc_html_e( 'General', 'biapsu-profilesync' ); ?></h2>
 				<table class="form-table" role="presentation">
 					<tr>
-						<th scope="row"><?php esc_html_e( 'Enable sync prompt', 'biapsu-profilesync' ); ?></th>
+						<th scope="row"><?php esc_html_e( 'Enable volunteer status check', 'biapsu-profilesync' ); ?></th>
 						<td><label><input type="checkbox" name="enabled" value="1" <?php checked( $all['enabled'] ); ?> />
-							<?php esc_html_e( 'Show the sync choice to first-time users after login.', 'biapsu-profilesync' ); ?></label></td>
+							<?php esc_html_e( 'On Google login, check a verified email against the platform API before showing the existing Authorizenter question. No profile fields are imported.', 'biapsu-profilesync' ); ?></label></td>
 					</tr>
-					<tr>
-						<th scope="row"><label for="choice_page_id"><?php esc_html_e( 'Choice page', 'biapsu-profilesync' ); ?></label></th>
-						<td>
-							<select name="choice_page_id" id="choice_page_id">
-								<option value="0"><?php esc_html_e( '— Select —', 'biapsu-profilesync' ); ?></option>
-								<?php foreach ( $pages as $page ) : ?>
-									<option value="<?php echo (int) $page->ID; ?>" <?php selected( (int) $all['choice_page_id'], (int) $page->ID ); ?>>
-										<?php echo esc_html( $page->post_title ); ?>
-									</option>
-								<?php endforeach; ?>
-							</select>
-							<p class="description"><?php esc_html_e( 'Page containing the [biapsu_profilesync] shortcode. Auto-created on activation.', 'biapsu-profilesync' ); ?></p>
-						</td>
-					</tr>
+
 				</table>
 
 				<h2 class="title"><?php esc_html_e( 'Platform connection (server-to-server)', 'biapsu-profilesync' ); ?></h2>
@@ -216,10 +193,10 @@ class Admin_Settings {
 					<tr>
 						<th scope="row"><label for="base_url"><?php esc_html_e( 'Platform base URL', 'biapsu-profilesync' ); ?></label></th>
 						<td><input type="url" name="base_url" id="base_url" class="regular-text" value="<?php echo esc_attr( $platform['base_url'] ); ?>" placeholder="https://platform.example.org" />
-							<p class="description"><?php esc_html_e( 'Token/profile endpoints are derived from this if left blank below.', 'biapsu-profilesync' ); ?></p></td>
+							<p class="description"><?php esc_html_e( 'If Profile endpoint is blank, /api/profile/ is derived from this URL.', 'biapsu-profilesync' ); ?></p></td>
 					</tr>
 					<tr>
-						<th scope="row"><label for="profile_endpoint"><?php esc_html_e( 'Profile endpoint', 'biapsu-profilesync' ); ?></label></th>
+						<th scope="row"><label for="profile_endpoint"><?php esc_html_e( 'Volunteer lookup endpoint', 'biapsu-profilesync' ); ?></label></th>
 						<td><input type="url" name="profile_endpoint" id="profile_endpoint" class="regular-text" value="<?php echo esc_attr( $platform['profile_endpoint'] ); ?>" placeholder="<?php echo esc_attr( $this->settings->profile_endpoint() ); ?>" /></td>
 					</tr>
 					<tr>
@@ -238,18 +215,7 @@ class Admin_Settings {
 					</tr>
 				</table>
 
-				<h2 class="title"><?php esc_html_e( 'Fields to sync', 'biapsu-profilesync' ); ?></h2>
-				<table class="form-table" role="presentation">
-					<tr>
-						<th scope="row"><?php esc_html_e( 'Field groups', 'biapsu-profilesync' ); ?></th>
-						<td>
-							<label><input type="checkbox" name="field_name" value="1" <?php checked( $fields['name'] ); ?> /> <?php esc_html_e( 'Name (first name, last name, display name)', 'biapsu-profilesync' ); ?></label><br />
-							<label><input type="checkbox" name="field_contact" value="1" <?php checked( $fields['contact'] ); ?> /> <?php esc_html_e( 'Contact (phone, email if empty)', 'biapsu-profilesync' ); ?></label><br />
-							<label><input type="checkbox" name="field_affiliation" value="1" <?php checked( $fields['affiliation'] ); ?> /> <?php esc_html_e( 'Affiliation (affiliation, department, position, location)', 'biapsu-profilesync' ); ?></label><br />
-							<label><input type="checkbox" name="field_user_type" value="1" <?php checked( $fields['user_type'] ); ?> /> <?php esc_html_e( 'User type (user type, description, join reason)', 'biapsu-profilesync' ); ?></label>
-						</td>
-					</tr>
-				</table>
+
 
 				<p class="submit">
 					<button type="submit" name="biapsu_submit" value="1" class="button button-primary"><?php esc_html_e( 'Save changes', 'biapsu-profilesync' ); ?></button>

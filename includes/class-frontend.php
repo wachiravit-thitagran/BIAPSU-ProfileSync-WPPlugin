@@ -10,7 +10,7 @@ namespace BIAPSU\ProfileSync;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Renders the "sync from platform?" prompt via the [biapsu_profilesync] shortcode.
+ * Legacy shortcode retained as a safe Continue link (no sync consent form).
  */
 class Frontend {
 
@@ -79,27 +79,11 @@ class Frontend {
 			return '<div class="biapsu-card"><p>' . esc_html__( 'Please log in to continue.', 'biapsu-profilesync' ) . '</p></div>';
 		}
 
-		$user_id = get_current_user_id();
-		$state   = get_user_meta( $user_id, Sync_Controller::STATE_META, true );
-
-		// Not armed: send the user onward (or show a neutral message).
-		if ( 'ready' !== $state ) {
-			return '<div class="biapsu-card"><p>' . esc_html__( 'Your account is ready. You may continue.', 'biapsu-profilesync' ) . '</p>'
-				. '<p><a class="biapsu-btn biapsu-btn--ghost" href="' . esc_url( home_url( '/' ) ) . '">' . esc_html__( 'Continue', 'biapsu-profilesync' ) . '</a></p></div>';
-		}
-
-		$error    = '';
-		$is_error = isset( $_GET['biapsu_sync'] ) && 'error' === sanitize_key( wp_unslash( $_GET['biapsu_sync'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( $is_error ) {
-			$error = (string) get_user_meta( $user_id, Sync_Controller::ERROR_META, true );
-		}
-
-		$action_url = admin_url( 'admin-post.php' );
-		$nonce      = wp_create_nonce( Sync_Controller::ACTION . '_' . $user_id );
-
-		ob_start();
-		include BIAPSU_PROFILESYNC_DIR . 'templates/sync-choice.php';
-		return (string) ob_get_clean();
+		// Compatibility only for old /profile-sync/ links. The consent form is
+		// retired: status lookup and optional questions now run in Authorizenter
+		// and never copy platform profile fields into WordPress.
+		return '<div class="biapsu-card"><p>' . esc_html__( 'Your account is ready. You may continue.', 'biapsu-profilesync' ) . '</p>'
+			. '<p><a class="biapsu-btn biapsu-btn--ghost" href="' . esc_url( home_url( '/' ) ) . '">' . esc_html__( 'Continue', 'biapsu-profilesync' ) . '</a></p></div>';
 	}
 
 	/**

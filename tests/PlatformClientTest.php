@@ -69,4 +69,32 @@ class PlatformClientTest extends TestCase {
 		$this->assertTrue( is_wp_error( $result ) );
 		$this->assertSame( 'biapsu_no_email', $result->get_error_code() );
 	}
+	public function test_membership_check_returns_true_only_for_matching_email(): void {
+		$client = new Platform_Client( $this->configured_settings() );
+		bia_test_http_push( 200, array( 'success' => true, 'data' => array( 'email' => 'VOLUNTEER@example.org', 'phone_number' => 'private' ) ) );
+		$this->assertTrue( $client->check_membership( 'volunteer@example.org' ) );
+	}
+
+	public function test_membership_check_returns_false_only_for_explicit_platform_not_found(): void {
+		$client = new Platform_Client( $this->configured_settings() );
+		bia_test_http_push( 400, array( 'success' => false, 'message' => 'Volunteer not found' ) );
+		$this->assertFalse( $client->check_membership( 'absent@example.org' ) );
+	}
+
+	public function test_membership_check_rejects_mismatched_or_missing_email(): void {
+		$client = new Platform_Client( $this->configured_settings() );
+		bia_test_http_push( 200, array( 'success' => true, 'data' => array( 'email' => 'another@example.org' ) ) );
+		$this->assertTrue( is_wp_error( $client->check_membership( 'volunteer@example.org' ) ) );
+		bia_test_http_push( 200, array( 'success' => true, 'data' => array( 'first_name' => 'No Email' ) ) );
+		$this->assertTrue( is_wp_error( $client->check_membership( 'volunteer@example.org' ) ) );
+	}
+
+	public function test_membership_check_does_not_convert_auth_errors_to_not_found(): void {
+		$client = new Platform_Client( $this->configured_settings() );
+		bia_test_http_push( 401, array( 'success' => false, 'message' => 'Invalid API key' ) );
+		$this->assertTrue( is_wp_error( $client->check_membership( 'volunteer@example.org' ) ) );
+		bia_test_http_push( 400, array( 'success' => false, 'message' => 'Invalid request' ) );
+		$this->assertTrue( is_wp_error( $client->check_membership( 'volunteer@example.org' ) ) );
+	}
+
 }

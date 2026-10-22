@@ -52,6 +52,31 @@ class Platform_Client {
 	}
 
 	/**
+	 * Check if a verified Google email belongs to an existing BIA volunteer.
+	 *
+	 * The legacy endpoint returns profile data, but this method discards all
+	 * fields and exposes only true/false/error. The email in the response must
+	 * match the requested identity, or we fail closed.
+	 *
+	 * @param string $email Verified Google email.
+	 * @return bool|\WP_Error True=found, false=explicit not found, WP_Error=unknown.
+	 */
+	public function check_membership( $email ) {
+		$email   = sanitize_email( $email );
+		$profile = $this->fetch_profile( $email );
+		if ( is_wp_error( $profile ) ) {
+			return 'biapsu_not_found' === $profile->get_error_code() ? false : $profile;
+		}
+
+		if ( ! is_array( $profile ) || empty( $profile['email'] ) ||
+			strtolower( (string) $profile['email'] ) !== strtolower( $email ) ) {
+			return new \WP_Error( 'biapsu_membership_mismatch', __( 'Platform email did not match the verified Google identity.', 'biapsu-profilesync' ) );
+		}
+
+		return true;
+	}
+
+	/**
 	 * Fetch a member profile from the platform by email.
 	 *
 	 * @param string $email Member email.
@@ -102,7 +127,16 @@ class Platform_Client {
 		 */
 		$body = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 
-		if ( 400 === $code ) {
+		// The platform uses HTTP 400 for "Volunteer not found", but OTHER
+		// HTTP 400 errors (invalid query, rejected authorization, etc.) must not
+		// be treated as proof that the volunteer has no account.
+		if (
+			400 === $code
+			&& is_array( $body )
+			&& isset( $body['success'], $body['message'] )
+			&& false === $body['success']
+			&& 'Volunteer not found' === $body['message']
+		) {
 			return new \WP_Error( 'biapsu_not_found', __( 'No matching profile was found on the platform.', 'biapsu-profilesync' ) );
 		}
 
@@ -114,9 +148,9 @@ class Platform_Client {
 			);
 		}
 
-		// A well-formed "not found" response.
-		if ( isset( $body['success'] ) && empty( $body['success'] ) ) {
-			return new \WP_Error( 'biapsu_not_found', __( 'No matching profile was found on the platform.', 'biapsu-profilesync' ) );
+		// A generic API/application error is NOT equivalent to no volunteer.
+		if ( isset( $body['success'] ) && false === $body['success'] ) {
+			return new \WP_Error( 'biapsu_profile_http', __( 'Platform rejected the profile request.', 'biapsu-profilesync' ) );
 		}
 
 		if ( 200 !== $code ) {
