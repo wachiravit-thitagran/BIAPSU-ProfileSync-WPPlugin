@@ -60,6 +60,25 @@ final class AccountLinkingTest extends TestCase {
 		$this->assertFalse( $service->is_linked( 17 ) );
 	}
 
+	public function test_nested_google_return_url_is_encoded_for_oauth_question_flow(): void {
+		$page_id = bia_test_make_page( 'profile-sync' );
+		$settings = new Settings();
+		$values = $settings->all();
+		$values['choice_page_id'] = $page_id;
+		$settings->save( $values );
+		$provider = new class {
+			public function id() {
+				return 'google';
+			}
+		};
+		$url = ( new Account_Linking( $settings ) )->filter_return_to(
+			'https://example.test/course/?lesson=1&chapter=2',
+			array(),
+			$provider
+		);
+		$this->assertStringContainsString( 'return_to=https%3A%2F%2Fexample.test%2Fcourse%2F%3Flesson%3D1%26chapter%3D2', $url );
+	}
+
 	public function test_mcp_registers_read_only_link_status(): void {
 		\BIAPSU\ProfileSync\MCP::register_abilities();
 		$this->assertArrayHasKey( 'biapsu-profilesync/get-link-status', $GLOBALS['mock_abilities'] );
