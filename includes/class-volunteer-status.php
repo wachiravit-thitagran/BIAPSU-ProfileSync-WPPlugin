@@ -69,7 +69,6 @@ class Volunteer_Status {
 	 */
 	public function on_login( $user, $provider = '', $identity = null ) {
 		// Questions are now self-declared; do not call the platform API.
-		return;
 	}
 
 	/**
@@ -87,26 +86,14 @@ class Volunteer_Status {
 		if ( 'google' === $provider && $this->settings->get( 'enabled' ) ) {
 			return $questions;
 		}
-		return array_values( array_filter( $questions, static function ( $question ) {
-			return ! is_array( $question ) || ! isset( $question['id'] ) || self::QUESTION_ID !== $question['id'];
-		} ) );
+		return array_values(
+			array_filter(
+				$questions,
+				static function ( $question ) {
+					return ! is_array( $question ) || ! isset( $question['id'] ) || self::QUESTION_ID !== $question['id'];
+				}
+			)
+		);
 	}
 
-	/**
-	 * Authorizenter's public service accessor is an optional dependency.
-	 *
-	 * @return object|null Questions service.
-	 */
-	private function questions_service() {
-		$accessor = 'Authorizenter\\Core\\authorizenter_core';
-		if ( ! function_exists( $accessor ) ) {
-			return null;
-		}
-		$core = call_user_func( $accessor );
-		if ( ! is_object( $core ) ) {
-			return null;
-		}
-		$members = get_object_vars( $core );
-		return isset( $members['questions'] ) && is_object( $members['questions'] ) ? $members['questions'] : null;
-	}
 }
