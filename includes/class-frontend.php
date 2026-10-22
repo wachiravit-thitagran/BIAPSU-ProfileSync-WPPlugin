@@ -118,7 +118,7 @@ class Frontend {
 			return;
 		}
 		$destination = wp_validate_redirect( esc_url_raw( wp_unslash( $_GET['return_to'] ) ), home_url( '/' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Validated redirect.
-		if ( $destination === get_permalink( (int) $this->settings->get( 'choice_page_id' ) ) ) {
+		if ( get_permalink( (int) $this->settings->get( 'choice_page_id' ) ) === $destination ) {
 			$destination = home_url( '/' );
 		}
 		wp_safe_redirect( $destination );
