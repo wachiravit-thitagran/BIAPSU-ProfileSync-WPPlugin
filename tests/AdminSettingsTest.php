@@ -1,144 +1,63 @@
 <?php
 /**
- * Tests for Admin_Settings.
+ * Admin page tests for OAuth-based account linking.
  *
  * @package BIAPSU\ProfileSync\Tests
  */
 
 namespace BIAPSU\ProfileSync\Tests;
 
-use PHPUnit\Framework\TestCase;
-use BIAPSU\ProfileSync\Settings;
-use BIAPSU\ProfileSync\Platform_Client;
 use BIAPSU\ProfileSync\Admin_Settings;
+use BIAPSU\ProfileSync\Platform_Client;
+use BIAPSU\ProfileSync\Settings;
+use PHPUnit\Framework\TestCase;
 
-class AdminSettingsTest extends TestCase {
-
-	/**
-	 * @var Settings
-	 */
+final class AdminSettingsTest extends TestCase {
+	/** @var Settings */
 	private $settings;
-
-	/**
-	 * @var Platform_Client
-	 */
-	private $client;
-
-	/**
-	 * @var Admin_Settings
-	 */
+	/** @var Admin_Settings */
 	private $admin;
 
 	protected function setUp(): void {
-		parent::setUp();
 		bia_test_reset();
+		unset( $_POST['biapsu_submit'] );
 		$this->settings = new Settings();
-		$this->client   = new Platform_Client( $this->settings );
-		$this->admin    = new Admin_Settings( $this->settings, $this->client );
+		$this->admin = new Admin_Settings( $this->settings, new Platform_Client( $this->settings ) );
 	}
 
-	public function test_menu_hooks() {
-		// Just ensure hooks function can be called.
+	public function test_registration_adds_only_admin_menu_hook(): void {
 		$this->admin->hooks();
-		$this->assertTrue( true );
+		$this->assertContains( 'admin_menu', array_column( $GLOBALS['__actions'], 'tag' ) );
+		$this->assertNotContains( 'admin_post_biapsu_profilesync_test', array_column( $GLOBALS['__actions'], 'tag' ) );
 	}
 
-	public function test_menu_registration() {
-		$this->admin->menu();
-		$this->assertTrue( true );
-	}
-
-	public function test_render_does_not_save_if_not_admin() {
+	public function test_non_admin_cannot_change_settings(): void {
 		$GLOBALS['__current_user_can'] = false;
 		$_POST['biapsu_submit'] = '1';
-		$_POST['enabled'] = '1';
-
 		ob_start();
 		$this->admin->render();
 		ob_end_clean();
-
-		$all = $this->settings->all();
-		$this->assertSame( '', $all['platform']['base_url'] );
+		$this->assertTrue( $this->settings->get( 'enabled' ) );
 	}
 
-	public function test_render_saves_settings_if_admin() {
+	public function test_admin_can_disable_self_reported_linking(): void {
 		$GLOBALS['__current_user_can'] = true;
-		$_POST['biapsu_submit']        = '1';
-		$_POST['enabled']              = '1';
-		$_POST['base_url']             = 'https://platform.test';
-		$_POST['timeout']              = '15';
-		$_POST['verify_ssl']           = '1';
-		$_POST['api_key']              = 'new_secret_key';
-
+		$_POST['biapsu_submit'] = '1';
+		unset( $_POST['enabled'] );
 		ob_start();
 		$this->admin->render();
 		ob_end_clean();
-
-		$all = $this->settings->all();
-		$this->assertTrue( $all['enabled'] );
-		$this->assertSame( 'https://platform.test', $all['platform']['base_url'] );
-		$this->assertSame( 15, $all['platform']['timeout'] );
-		$this->assertTrue( $all['platform']['verify_ssl'] );
-		// Since sanitize_text_field encrypts inside Settings->save, we just check if it changed.
-		// Wait, the test uses the real Settings class. Let's assume it gets updated.
-		$this->assertTrue( $all['fields']['name'] );
-		$this->assertTrue( $all['fields']['contact'] );
-		$this->assertSame( 0, $all['choice_page_id'] );
+		$this->assertFalse( $this->settings->get( 'enabled' ) );
 	}
 
-	public function test_handle_test_denies_access() {
-		$GLOBALS['__current_user_can'] = false;
-		
-		$this->expectException( \Exception::class );
-		$this->expectExceptionMessage( 'wp_die: Permission denied.' );
-
-		$this->admin->handle_test();
-	}
-
-	public function test_handle_test_redirects_on_success() {
+	public function test_admin_page_does_not_expose_api_key_or_profile_sync(): void {
 		$GLOBALS['__current_user_can'] = true;
-		$this->settings->save( array( 'platform' => array( 'api_key' => 'valid', 'base_url' => 'https://platform.test' ) ) );
-
-		// Enqueue a successful dummy response
-		bia_test_http_push( 400, array( 'success' => false, 'message' => 'Volunteer not found' ) );
-
-		try {
-			$this->admin->handle_test();
-		} catch ( \Exception $e ) {
-			if ( strpos( $e->getMessage(), 'wp_safe_redirect' ) === false ) {
-				throw $e;
-			}
-		}
-
-		$transient = get_transient( 'biapsu_profilesync_test_result' );
-		$this->assertNotFalse( $transient );
-		$this->assertSame( 'ok', $transient['status'], 'Transient was: ' . print_r($transient, true) );
-		$this->assertStringContainsString( 'API Key accepted', $transient['msg'] );
-		$this->assertSame( 'https://example.test/wp-admin/admin.php?page=biapsu-profilesync', $GLOBALS['__last_redirect'] );
-	}
-	public function test_render_does_not_offer_legacy_profile_sync_fields(): void {
-		$GLOBALS['__current_user_can'] = true;
-		unset( $_POST['biapsu_submit'] );
 		ob_start();
 		$this->admin->render();
 		$html = (string) ob_get_clean();
-		$this->assertStringContainsString( 'Enable volunteer status check', $html );
+		$this->assertStringContainsString( 'BIA PSU Account Linking', $html );
+		$this->assertStringNotContainsString( 'name="api_key"', $html );
+		$this->assertStringNotContainsString( 'Test connection', $html );
 		$this->assertStringNotContainsString( 'Fields to sync', $html );
-		$this->assertStringNotContainsString( 'Choice page', $html );
 	}
-
-	public function test_connection_test_rejects_generic_bad_request_as_failure(): void {
-		$GLOBALS['__current_user_can'] = true;
-		$this->settings->save( array( 'platform' => array( 'api_key' => 'valid', 'base_url' => 'https://platform.test' ) ) );
-		bia_test_http_push( 400, array( 'success' => false, 'message' => 'Invalid request' ) );
-		try {
-			$this->admin->handle_test();
-		} catch ( \Exception $e ) {
-			if ( false === strpos( $e->getMessage(), 'wp_safe_redirect' ) ) {
-				throw $e;
-			}
-		}
-		$this->assertSame( 'fail', get_transient( 'biapsu_profilesync_test_result' )['status'] );
-	}
-
 }
