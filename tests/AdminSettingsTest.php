@@ -118,4 +118,29 @@ class AdminSettingsTest extends TestCase {
 		$this->assertStringContainsString( 'API Key accepted', $transient['msg'] );
 		$this->assertSame( 'https://example.test/wp-admin/admin.php?page=biapsu-profilesync', $GLOBALS['__last_redirect'] );
 	}
+	public function test_render_does_not_offer_legacy_profile_sync_fields(): void {
+		$GLOBALS['__current_user_can'] = true;
+		unset( $_POST['biapsu_submit'] );
+		ob_start();
+		$this->admin->render();
+		$html = (string) ob_get_clean();
+		$this->assertStringContainsString( 'Volunteer status', $html );
+		$this->assertStringNotContainsString( 'Fields to sync', $html );
+		$this->assertStringNotContainsString( 'Choice page', $html );
+	}
+
+	public function test_connection_test_rejects_generic_bad_request_as_failure(): void {
+		$GLOBALS['__current_user_can'] = true;
+		$this->settings->save( array( 'platform' => array( 'api_key' => 'valid', 'base_url' => 'https://platform.test' ) ) );
+		bia_test_http_push( 400, array( 'success' => false, 'message' => 'Invalid request' ) );
+		try {
+			$this->admin->handle_test();
+		} catch ( \Exception $e ) {
+			if ( false === strpos( $e->getMessage(), 'wp_safe_redirect' ) ) {
+				throw $e;
+			}
+		}
+		$this->assertSame( 'fail', get_transient( 'biapsu_profilesync_test_result' )['status'] );
+	}
+
 }
