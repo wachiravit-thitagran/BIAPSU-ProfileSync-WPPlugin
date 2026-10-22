@@ -116,4 +116,67 @@ final class AccountLinkingTest extends TestCase {
 		$this->assertArrayHasKey( 'biapsu-profilesync/get-link-status', $GLOBALS['mock_abilities'] );
 		$this->assertTrue( $GLOBALS['mock_abilities']['biapsu-profilesync/get-link-status']['meta']['annotations']['readonly'] );
 	}
+
+	public function test_yes_answer_displays_explicit_oauth_button_without_auto_linking(): void {
+		bia_test_make_user( 17, 'google@example.org' );
+		bia_test_login( 17 );
+		update_user_meta( 17, 'authorizenter_answers', array( 'is_bia_volunteer' => 'ใช่' ) );
+		$html = ( new \BIAPSU\ProfileSync\Frontend( new Settings() ) )->render();
+
+		$this->assertStringContainsString( 'biapsu_profilesync_start_link', $html );
+		$this->assertStringContainsString( 'เชื่อมต่อบัญชีแพลตฟอร์มพุทธธรรม', $html );
+		$this->assertSame( '', get_user_meta( 17, Account_Linking::LINK_META, true ) );
+		$this->assertSame( array(), $GLOBALS['__http_log'] );
+	}
+
+	public function test_no_answer_never_shows_oauth_connect_button(): void {
+		bia_test_make_user( 17 );
+		bia_test_login( 17 );
+		update_user_meta( 17, 'authorizenter_answers', array( 'is_bia_volunteer' => 'ไม่ใช่' ) );
+		$html = ( new \BIAPSU\ProfileSync\Frontend( new Settings() ) )->render();
+
+		$this->assertStringNotContainsString( 'biapsu_profilesync_start_link', $html );
+		$this->assertStringContainsString( 'Continue', $html );
+	}
+
+	public function test_existing_link_does_not_offer_relinking(): void {
+		bia_test_make_user( 17 );
+		bia_test_login( 17 );
+		update_user_meta( 17, 'authorizenter_answers', array( 'is_bia_volunteer' => 'ใช่' ) );
+		update_user_meta( 17, Account_Linking::LINK_META, 'verified-subject' );
+		$html = ( new \BIAPSU\ProfileSync\Frontend( new Settings() ) )->render();
+
+		$this->assertStringNotContainsString( 'biapsu_profilesync_start_link', $html );
+		$this->assertSame( 'verified-subject', get_user_meta( 17, Account_Linking::LINK_META, true ) );
+	}
+
+	public function test_existing_oidc_identity_cannot_be_replaced_by_different_subject(): void {
+		bia_test_make_user( 17 );
+		update_user_meta( 17, 'authorizenter_answers', array( 'is_bia_volunteer' => 'ใช่' ) );
+		update_user_meta( 17, Account_Linking::LINK_META, 'original-subject' );
+		$service = new Account_Linking( new Settings() );
+		$property = new \ReflectionProperty( Account_Linking::class, 'validated_user_id' );
+		$property->setAccessible( true );
+		$property->setValue( $service, 17 );
+
+		$identity = (object) array( 'provider' => 'oidc', 'sub' => 'different-subject', 'email' => 'other@example.org' );
+		$result = $service->pre_resolve_user( null, $identity, array() );
+		$this->assertInstanceOf( \WP_Error::class, $result );
+		$this->assertSame( 'biapsu_link_conflict', $result->get_error_code() );
+		$this->assertSame( 'original-subject', get_user_meta( 17, Account_Linking::LINK_META, true ) );
+	}
+
+	public function test_read_only_mcp_link_status_never_returns_subject_or_tokens(): void {
+		bia_test_make_user( 17 );
+		bia_test_login( 17 );
+		update_user_meta( 17, 'authorizenter_answers', array( 'is_bia_volunteer' => 'ใช่' ) );
+		update_user_meta( 17, Account_Linking::LINK_META, 'private-oidc-subject' );
+		$status = \BIAPSU\ProfileSync\MCP::get_link_status( array( 'user_id' => 17 ) );
+
+		$this->assertSame( 'linked', $status['link_status'] );
+		$this->assertStringNotContainsString( 'private-oidc-subject', wp_json_encode( $status ) );
+		$this->assertTrue( \BIAPSU\ProfileSync\MCP::can_read_user_state( array( 'user_id' => 17 ) ) );
+		$this->assertFalse( \BIAPSU\ProfileSync\MCP::can_read_user_state( array( 'user_id' => 18 ) ) );
+	}
+
 }
