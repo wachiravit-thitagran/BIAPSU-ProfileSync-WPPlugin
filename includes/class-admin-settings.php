@@ -18,7 +18,7 @@ class Admin_Settings {
 	private $settings;
 
 	/** @param Settings $settings Plugin settings. */
-	public function __construct( Settings $settings, Platform_Client $client ) {
+	public function __construct( Settings $settings ) {
 		$this->settings = $settings;
 	}
 
