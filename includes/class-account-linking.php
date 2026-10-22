@@ -90,12 +90,12 @@ final class Account_Linking {
 		}
 		check_admin_referer( 'biapsu_profilesync_link_' . $user_id );
 
-		$cookie = defined( 'LOGGED_IN_COOKIE' ) && isset( $_COOKIE[ LOGGED_IN_COOKIE ] ) ? (string) wp_unslash( $_COOKIE[ LOGGED_IN_COOKIE ] ) : '';
+		$cookie = defined( 'LOGGED_IN_COOKIE' ) && isset( $_COOKIE[ LOGGED_IN_COOKIE ] ) ? (string) wp_unslash( $_COOKIE[ LOGGED_IN_COOKIE ] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- WordPress authenticates the exact raw cookie.
 		if ( '' === $cookie || (int) wp_validate_auth_cookie( $cookie, 'logged_in' ) !== $user_id || ! $this->start_session() ) {
 			wp_die( esc_html__( 'Please sign in again to connect your account.', 'biapsu-profilesync' ) );
 		}
 
-		$destination = isset( $_POST['return_to'] ) ? (string) wp_unslash( $_POST['return_to'] ) : '';
+		$destination = isset( $_POST['return_to'] ) ? esc_url_raw( wp_unslash( $_POST['return_to'] ) ) : '';
 		$destination = wp_validate_redirect( esc_url_raw( $destination ), home_url( '/' ) );
 		$token       = bin2hex( random_bytes( 32 ) );
 		$page        = $this->choice_url();
@@ -145,7 +145,7 @@ final class Account_Linking {
 			return $return_to;
 		}
 
-		$intent = isset( $_SESSION[ self::INTENT_SESSION_KEY ] ) ? $_SESSION[ self::INTENT_SESSION_KEY ] : null;
+		$intent = isset( $_SESSION[ self::INTENT_SESSION_KEY ] ) ? $_SESSION[ self::INTENT_SESSION_KEY ] : null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Session data written by this plugin and checked below.
 		if ( ! is_array( $intent ) || ! isset( $intent['return_to'] ) || ! hash_equals( (string) $intent['return_to'], (string) $return_to ) ) {
 			return $return_to;
 		}
@@ -254,7 +254,7 @@ final class Account_Linking {
 	private function valid_intent( array $intent ) {
 		$user_id = (int) ( $intent['user_id'] ?? 0 );
 		$created = (int) ( $intent['created'] ?? 0 );
-		$cookie  = defined( 'LOGGED_IN_COOKIE' ) && isset( $_COOKIE[ LOGGED_IN_COOKIE ] ) ? (string) wp_unslash( $_COOKIE[ LOGGED_IN_COOKIE ] ) : '';
+		$cookie  = defined( 'LOGGED_IN_COOKIE' ) && isset( $_COOKIE[ LOGGED_IN_COOKIE ] ) ? (string) wp_unslash( $_COOKIE[ LOGGED_IN_COOKIE ] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- WordPress authenticates the exact raw cookie.
 		return $user_id > 0
 			&& $created > 0
 			&& time() - $created <= self::INTENT_TTL
