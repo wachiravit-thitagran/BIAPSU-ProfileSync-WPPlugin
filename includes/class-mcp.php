@@ -71,17 +71,27 @@ final class MCP {
 			)
 		);
 
-		wp_register_ability( 'biapsu-profilesync/get-link-status', array(
-			'label' => 'Get BIA Platform Link Status',
-			'description' => 'Read volunteer answer and verified OIDC link status without identities or secrets.',
-			'category' => 'biapsu-profilesync',
-			'input_schema' => array( 'type' => 'object', 'properties' => array(
-				'user_id' => array( 'type' => 'integer', 'minimum' => 1 ),
-			), 'required' => array( 'user_id' ) ),
-			'execute_callback' => array( __CLASS__, 'get_link_status' ),
-			'permission_callback' => array( __CLASS__, 'can_read_user_state' ),
-			'meta' => self::meta(),
-		) );
+		wp_register_ability(
+			'biapsu-profilesync/get-link-status',
+			array(
+				'label'               => 'Get BIA Platform Link Status',
+				'description'         => 'Read volunteer answer and verified OIDC link status without identities or secrets.',
+				'category'            => 'biapsu-profilesync',
+				'input_schema'        => array(
+					'type'       => 'object',
+					'properties' => array(
+						'user_id' => array(
+							'type'    => 'integer',
+							'minimum' => 1,
+						),
+					),
+					'required'   => array( 'user_id' ),
+				),
+				'execute_callback'    => array( __CLASS__, 'get_link_status' ),
+				'permission_callback' => array( __CLASS__, 'can_read_user_state' ),
+				'meta'                => self::meta(),
+			)
+		);
 
 		wp_register_ability(
 			'biapsu-profilesync/get-status',
@@ -130,7 +140,12 @@ final class MCP {
 		);
 	}
 
-	/** Read a user's self-declared answer and linked identity status. */
+	/**
+	 * Read the volunteer answer and linked OIDC identity status.
+	 *
+	 * @param array<string,mixed> $input Ability input, containing user_id.
+	 * @return array<string,mixed>
+	 */
 	public static function get_link_status( array $input ) {
 		$user_id = (int) ( $input['user_id'] ?? 0 );
 		$answers = get_user_meta( $user_id, 'authorizenter_answers', true );
