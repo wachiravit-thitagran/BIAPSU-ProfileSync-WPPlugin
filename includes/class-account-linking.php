@@ -216,7 +216,9 @@ final class Account_Linking {
 		}
 		update_user_meta( $user->ID, self::LINK_META, $this->validated_subject );
 		do_action( 'authorizenter_user_linked', $user->ID, $identity );
-		unset( $_SESSION[ self::INTENT_SESSION_KEY ] );
+		if ( isset( $_SESSION ) && is_array( $_SESSION ) ) {
+			unset( $_SESSION[ self::INTENT_SESSION_KEY ] );
+		}
 		$this->validated_user_id = 0;
 		$this->validated_subject = '';
 	}
