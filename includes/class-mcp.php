@@ -38,7 +38,7 @@ final class MCP {
 			'biapsu-profilesync',
 			array(
 				'label'       => 'BIA PSU ProfileSync',
-				'description' => 'User profile synchronization status, readiness, and configuration information.',
+				'description' => 'Consent-based BIA volunteer question and OIDC account-link status.',
 			)
 		);
 	}
@@ -87,7 +87,7 @@ final class MCP {
 			'biapsu-profilesync/get-status',
 			array(
 				'label'               => 'Get ProfileSync Status',
-				'description'         => 'Retrieves synchronization readiness and non-sensitive configuration information without exposing credentials or secrets.',
+				'description'         => 'Returns account-linking configuration without secrets or API key.',
 				'category'            => 'biapsu-profilesync',
 				'input_schema'        => array(
 					'type'       => 'object',
@@ -109,7 +109,7 @@ final class MCP {
 	 * @return bool
 	 */
 	public static function can_read_user_state( array $input ) {
-		$user_id = (int) $input['user_id'];
+		$user_id = (int) ( $input['user_id'] ?? 0 );
 
 		return get_current_user_id() === $user_id || current_user_can( 'list_users' );
 	}
@@ -152,16 +152,12 @@ final class MCP {
 	 */
 	public static function get_status() {
 		$settings = Plugin::instance()->settings();
-		$platform = (array) $settings->get( 'platform' );
-
-		unset( $platform['api_key'] );
-
 		return array(
-			'enabled'        => (bool) $settings->get( 'enabled' ),
-			'configured'     => (bool) $settings->is_configured(),
-			'choice_page_id' => (int) $settings->get( 'choice_page_id' ),
-			'platform'       => $platform,
-			'fields'         => (array) $settings->get( 'fields' ),
+			'enabled'                   => (bool) $settings->get( 'enabled' ),
+			'flow'                      => 'google_question_then_oidc_link',
+			'oidc_provider'             => 'oidc',
+			'platform_api_key_required' => false,
+			'choice_page_id'            => (int) $settings->get( 'choice_page_id' ),
 		);
 	}
 
