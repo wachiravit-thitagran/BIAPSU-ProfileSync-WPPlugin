@@ -71,6 +71,18 @@ final class MCP {
 			)
 		);
 
+		wp_register_ability( 'biapsu-profilesync/get-link-status', array(
+			'label' => 'Get BIA Platform Link Status',
+			'description' => 'Read volunteer answer and verified OIDC link status without identities or secrets.',
+			'category' => 'biapsu-profilesync',
+			'input_schema' => array( 'type' => 'object', 'properties' => array(
+				'user_id' => array( 'type' => 'integer', 'minimum' => 1 ),
+			), 'required' => array( 'user_id' ) ),
+			'execute_callback' => array( __CLASS__, 'get_link_status' ),
+			'permission_callback' => array( __CLASS__, 'can_read_user_state' ),
+			'meta' => self::meta(),
+		) );
+
 		wp_register_ability(
 			'biapsu-profilesync/get-status',
 			array(
