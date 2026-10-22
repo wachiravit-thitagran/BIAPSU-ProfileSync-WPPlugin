@@ -22,7 +22,7 @@ final class AdminSettingsTest extends TestCase {
 		bia_test_reset();
 		unset( $_POST['biapsu_submit'] );
 		$this->settings = new Settings();
-		$this->admin = new Admin_Settings( $this->settings, new Platform_Client( $this->settings ) );
+		$this->admin = new Admin_Settings( $this->settings );
 	}
 
 	public function test_registration_adds_only_admin_menu_hook(): void {
