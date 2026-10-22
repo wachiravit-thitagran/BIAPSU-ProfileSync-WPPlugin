@@ -188,6 +188,20 @@ function get_user_by( $field, $value ) {
 	return false;
 }
 
+function get_users( $args = array() ) {
+	$found = array();
+	foreach ( $GLOBALS['__users'] as $id => $user ) {
+		if ( isset( $args['meta_key'] ) && get_user_meta( $id, $args['meta_key'], true ) !== ( $args['meta_value'] ?? '' ) ) {
+			continue;
+		}
+		$found[] = isset( $args['fields'] ) && 'ids' === $args['fields'] ? $id : $user;
+		if ( isset( $args['number'] ) && count( $found ) >= (int) $args['number'] ) {
+			break;
+		}
+	}
+	return $found;
+}
+
 function wp_update_user( $data ) {
 	$id = isset( $data['ID'] ) ? (int) $data['ID'] : 0;
 	if ( ! isset( $GLOBALS['__users'][ $id ] ) ) {
