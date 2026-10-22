@@ -38,7 +38,7 @@ final class Plugin {
 	/**
 	 * Post-Google-login volunteer status check (no data synchronization).
 	 *
-	 * @var Sync_Controller
+	 * @var Volunteer_Status
 	 */
 	private $volunteer_status;
 
