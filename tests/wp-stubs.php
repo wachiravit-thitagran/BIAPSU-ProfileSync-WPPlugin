@@ -247,6 +247,11 @@ function wp_safe_redirect( $location, $status = 302 ) {
 	throw new Exception('wp_safe_redirect: ' . $location);
 }
 function wp_login_url( $redirect = '' ) { return 'https://example.test/wp-login.php'; }
+function wp_validate_redirect( $location, $fallback = '' ) {
+	$host = parse_url( $location, PHP_URL_HOST );
+	return ! $host || 'example.test' === strtolower( $host ) ? $location : $fallback;
+}
+
 function check_admin_referer( $action = -1, $query_arg = '_wpnonce' ) { return true; }
 function wp_create_nonce( $action = -1 ) { return 'nonce-' . $action; }
 function wp_verify_nonce( $nonce, $action = -1 ) { return 1; }
