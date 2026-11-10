@@ -61,7 +61,9 @@ final class AccountLinkingTest extends TestCase {
 	}
 
 	public function test_nested_google_return_url_is_encoded_for_oauth_question_flow(): void {
+				$GLOBALS['__bia_core'] = (object) array( 'settings' => new class { public function get_context( $id ) { return array(); } }, 'providers' => new class { public function enabled_for_context( $context ) { return array( 'oidc' => new class { public function oidc_provider_url() { return 'https://idp.example.test'; } } ); } } );
 		$page_id = bia_test_make_page( 'profile-sync' );
+		$GLOBALS['__mock_posts'][ $page_id ]->post_content = '[biapsu_profilesync]';
 		$settings = new Settings();
 		$values = $settings->all();
 		$values['choice_page_id'] = $page_id;
@@ -90,6 +92,7 @@ final class AccountLinkingTest extends TestCase {
 		$target = $service->pre_resolve_user( null, $identity, array() );
 		$this->assertInstanceOf( \WP_User::class, $target );
 		$this->assertSame( 17, $target->ID );
+		$this->assertSame( $target, $service->before_login( $target, $identity, array() ) );
 		$service->after_login( $target, 'oidc', $identity );
 		$this->assertSame( 'subject-42', get_user_meta( 17, Account_Linking::LINK_META, true ) );
 		$this->assertSame( 'google@example.org', get_user_by( 'id', 17 )->user_email );

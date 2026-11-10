@@ -39,9 +39,16 @@ class Frontend {
 	 * @return void
 	 */
 	public function hooks() {
+		add_action( 'admin_init', array( $this, 'heal_page' ) );
+		add_action( 'admin_notices', array( $this, 'setup_notice' ) );
 		add_shortcode( self::SHORTCODE, array( $this, 'render' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'maybe_enqueue' ) );
 		add_action( 'template_redirect', array( $this, 'maybe_continue' ), 30 );
+	}
+
+	/** Heal the choice page during administration. */
+	public function heal_page() {
+		$this->ensure_page();
 	}
 
 	/**
@@ -80,10 +87,10 @@ class Frontend {
 			return '<div class="biapsu-card"><p>' . esc_html__( 'Please log in to continue.', 'biapsu-profilesync' ) . '</p></div>';
 		}
 
-		$user_id = get_current_user_id();
-		$link    = new Account_Linking( $this->settings );
+		$user_id     = get_current_user_id();
+		$link        = new Account_Linking( $this->settings );
 		$destination = isset( $_GET['return_to'] ) ? wp_validate_redirect( esc_url_raw( wp_unslash( $_GET['return_to'] ) ), home_url( '/' ) ) : home_url( '/' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Return destination only.
-		$continue = '<p><a class="biapsu-btn biapsu-btn--ghost" href="' . esc_url( $destination ) . '">' . esc_html__( 'Continue', 'biapsu-profilesync' ) . '</a></p>';
+		$continue    = '<p><a class="biapsu-btn biapsu-btn--ghost" href="' . esc_url( $destination ) . '">' . esc_html__( 'Continue', 'biapsu-profilesync' ) . '</a></p>';
 
 		if ( $link->is_linked( $user_id ) ) {
 			return '<div class="biapsu-card"><p>' . esc_html__( 'บัญชีแพลตฟอร์มพุทธธรรมเชื่อมต่อแล้ว', 'biapsu-profilesync' ) . '</p>' . $continue . '</div>';
@@ -93,7 +100,7 @@ class Frontend {
 		}
 
 		$action_url = admin_url( 'admin-post.php' );
-		$nonce = wp_create_nonce( 'biapsu_profilesync_link_' . $user_id );
+		$nonce      = wp_create_nonce( 'biapsu_profilesync_link_' . $user_id );
 		return '<div class="biapsu-card">'
 			. '<h2>' . esc_html__( 'เชื่อมต่อบัญชีแพลตฟอร์มพุทธธรรม', 'biapsu-profilesync' ) . '</h2>'
 			. '<p>' . esc_html__( 'ระบบจะให้ท่านเข้าสู่ระบบแพลตฟอร์มพุทธธรรม เพื่อยืนยันและเชื่อมต่อกับบัญชี Google ที่ใช้อยู่', 'biapsu-profilesync' ) . '</p>'
@@ -134,13 +141,13 @@ class Frontend {
 		$all     = $this->settings->all();
 		$page_id = (int) ( $all['choice_page_id'] ?? 0 );
 
-		if ( $page_id > 0 && get_post( $page_id ) ) {
+		if ( $this->valid_choice_page( get_post( $page_id ) ) ) {
 			return $page_id;
 		}
 
 		// Reuse an existing page that already contains the shortcode.
 		$existing = get_page_by_path( self::SLUG );
-		if ( $existing ) {
+		if ( $this->valid_choice_page( $existing ) ) {
 			$page_id = $existing->ID;
 		} else {
 			$page_id = wp_insert_post(
@@ -166,5 +173,23 @@ class Frontend {
 		}
 
 		return 0;
+	}
+
+	/**
+	 * Validate a usable published page without modifying unrelated content.
+	 *
+	 * @param mixed $post Candidate page.
+	 * @return bool
+	 */
+	private function valid_choice_page( $post ) {
+		return $post && 'page' === $post->post_type && 'publish' === $post->post_status
+			&& has_shortcode( (string) ( $post->post_content ?? '' ), self::SHORTCODE );
+	}
+
+	/** Show setup failures to administrators before routing Google users. */
+	public function setup_notice() {
+		if ( current_user_can( 'manage_options' ) && $this->settings->get( 'enabled' ) && ( ! $this->valid_choice_page( get_post( (int) $this->settings->get( 'choice_page_id' ) ) ) || ! ( new Account_Linking( $this->settings ) )->configuration_ready() ) ) {
+			echo '<div class="notice notice-error"><p>' . esc_html__( 'BIA account linking needs a published choice page and an enabled OIDC provider in the default Authorizenter context. Update Authorizenter Core if necessary.', 'biapsu-profilesync' ) . '</p></div>';
+		}
 	}
 }
