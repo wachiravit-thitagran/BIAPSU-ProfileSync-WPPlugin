@@ -56,7 +56,9 @@ class P2LinkingTest extends TestCase {
  public static function intentCases(): array {return array(array('expired',true),array('revoked',true),array('switched',true),array('renewed',true),array('missing-cookie',true),array('cancelled',true),array('valid',false),array('normal',false));}
  public function test_claim_failure_is_returned_before_login(): void {
   bia_test_make_user(17);update_user_meta(17,'authorizenter_answers',array('is_bia_volunteer'=>'ใช่'));
-  $service=new Account_Linking(new Settings());$prop=new \ReflectionProperty($service,'validated_user_id');$prop->setValue($service,17);
+  $service=new Account_Linking(new Settings());$prop=new \ReflectionProperty($service,'validated_user_id');
+  if(PHP_VERSION_ID < 80100){$prop->setAccessible(true);} // PHP 8.0 requires explicit access to private properties.
+  $prop->setValue($service,17);
   $identity=(object)array('provider'=>'oidc','sub'=>'subject');$user=$service->pre_resolve_user(null,$identity,array());
   $GLOBALS['__claim_link_callback']=static function(){return new \WP_Error('authorizenter_link_write_failed','Synthetic DB failure');};
   $this->assertInstanceOf(\WP_Error::class,$service->before_login($user,$identity,array()));$this->assertSame('',get_user_meta(17,Account_Linking::LINK_META,true));
