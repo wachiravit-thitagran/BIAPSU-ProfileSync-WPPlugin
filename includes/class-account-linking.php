@@ -41,6 +41,13 @@ final class Account_Linking {
 	private $validated_subject = '';
 
 	/**
+	 * Recognized explicit link callback with invalid state.
+	 *
+	 * @var bool
+	 */
+	private $invalid_intent = false;
+
+	/**
 	 * Construct the account linking service.
 	 *
 	 * @param Settings $settings Plugin settings.
@@ -54,6 +61,7 @@ final class Account_Linking {
 		add_action( 'admin_post_' . self::START_ACTION, array( $this, 'start' ) );
 		add_filter( 'authorizenter_login_return_to', array( $this, 'filter_return_to' ), 10, 3 );
 		add_filter( 'authorizenter_pre_resolve_user', array( $this, 'pre_resolve_user' ), 10, 3 );
+		add_filter( 'authorizenter_pre_login_user', array( $this, 'before_login' ), 10, 3 );
 		add_action( 'authorizenter_login_success', array( $this, 'after_login' ), 5, 3 );
 	}
 
@@ -99,7 +107,10 @@ final class Account_Linking {
 		$destination = wp_validate_redirect( esc_url_raw( $destination ), home_url( '/' ) );
 		$token       = bin2hex( random_bytes( 32 ) );
 		$page        = $this->choice_url();
-		$return_to   = add_query_arg(
+		if ( '' === $page || ! $this->configuration_ready() ) {
+			wp_die( esc_html__( 'Account linking configuration is unavailable. Please contact an administrator.', 'biapsu-profilesync' ) );
+		}
+		$return_to = add_query_arg(
 			array(
 				'biapsu_link' => $token,
 				'return_to'   => rawurlencode( $destination ),
@@ -138,10 +149,24 @@ final class Account_Linking {
 	public function filter_return_to( $return_to, $context, $provider ) {
 		$provider_id = is_object( $provider ) && method_exists( $provider, 'id' ) ? $provider->id() : '';
 		if ( 'google' === $provider_id && $this->settings->get( 'enabled' ) ) {
+			$page = $this->choice_url();
+			if ( '' === $page || ! $this->configuration_ready() ) {
+				return $return_to;
+			}
 			$destination = wp_validate_redirect( (string) $return_to, home_url( '/' ) );
-			return add_query_arg( 'return_to', rawurlencode( $destination ), $this->choice_url() );
+			return add_query_arg( 'return_to', rawurlencode( $destination ), $page );
 		}
-		if ( 'oidc' !== $provider_id || ! $this->start_session() ) {
+		if ( 'oidc' !== $provider_id ) {
+			return $return_to;
+		}
+
+		$this->validated_user_id = 0;
+		$this->validated_subject = '';
+		$query                   = wp_parse_url( (string) $return_to, PHP_URL_QUERY );
+		parse_str( (string) $query, $args );
+		$marked               = array_key_exists( 'biapsu_link', $args );
+		$this->invalid_intent = $marked;
+		if ( ! $this->start_session() ) {
 			return $return_to;
 		}
 
@@ -154,6 +179,7 @@ final class Account_Linking {
 			return $return_to;
 		}
 
+		$this->invalid_intent    = false;
 		$this->validated_user_id = (int) $intent['user_id'];
 		return $return_to;
 	}
@@ -168,6 +194,9 @@ final class Account_Linking {
 	 * @return mixed
 	 */
 	public function pre_resolve_user( $resolved, $identity, $context ) {
+		if ( $this->invalid_intent ) {
+			return new \WP_Error( 'biapsu_link_invalid_intent', __( 'The account linking session expired or changed. Please restart linking from your original account.', 'biapsu-profilesync' ) );
+		}
 		if ( null !== $resolved || 0 === $this->validated_user_id ) {
 			return $resolved;
 		}
@@ -196,6 +225,43 @@ final class Account_Linking {
 	}
 
 	/**
+	 * Claim ownership after policy/capability checks and before any login cookie.
+	 *
+	 * @param mixed  $user User or prior error.
+	 * @param object $identity Verified identity.
+	 * @param array  $context Login context.
+	 * @return mixed
+	 */
+	public function before_login( $user, $identity, $context ) {
+		if ( is_wp_error( $user ) || 0 === $this->validated_user_id ) {
+			return $user;
+		}
+		if ( ! ( $user instanceof \WP_User ) || $user->ID !== $this->validated_user_id || 'oidc' !== $identity->provider || ! hash_equals( $this->validated_subject, (string) $identity->sub ) ) {
+			return new \WP_Error( 'biapsu_link_invalid_identity', __( 'Account linking identity changed.', 'biapsu-profilesync' ) );
+		}
+		if ( ! is_callable( array( '\Authorizenter\Core\User_Mapper', 'claim_link' ) ) ) {
+			return new \WP_Error( 'biapsu_link_core_update_required', __( 'Please update Authorizenter Core before connecting accounts.', 'biapsu-profilesync' ) );
+		}
+		$claim  = array( '\Authorizenter\Core\User_Mapper', 'claim_link' );
+		$result = call_user_func( $claim, $user->ID, 'oidc', $this->validated_subject );
+		return is_wp_error( $result ) ? $result : $user;
+	}
+
+	/**
+	 * Whether Core can run the configured OIDC flow in the default context.
+	 *
+	 * @return bool
+	 */
+	public function configuration_ready() {
+		$core = function_exists( 'Authorizenter\\Core\\authorizenter_core' ) ? \Authorizenter\Core\authorizenter_core() : null;
+		if ( ! $core || ! isset( $core->settings, $core->providers ) || ! is_callable( array( '\Authorizenter\Core\User_Mapper', 'claim_link' ) ) ) {
+			return false;
+		}
+		$providers = $core->providers->enabled_for_context( $core->settings->get_context( 'default' ) );
+		return isset( $providers['oidc'] ) && '' !== (string) $providers['oidc']->oidc_provider_url();
+	}
+
+	/**
 	 * Persist subject only after Authorizenter has completed the OIDC login.
 	 * Never store a profile, token, or email from the second provider.
 	 *
@@ -214,7 +280,9 @@ final class Account_Linking {
 		if ( $this->subject_owned_by_other( $user->ID, $this->validated_subject ) ) {
 			return;
 		}
-		update_user_meta( $user->ID, self::LINK_META, $this->validated_subject );
+		if ( (string) get_user_meta( $user->ID, self::LINK_META, true ) !== $this->validated_subject ) {
+			return;
+		}
 		do_action( 'authorizenter_user_linked', $user->ID, $identity );
 		if ( isset( $_SESSION ) ) {
 			unset( $_SESSION[ self::INTENT_SESSION_KEY ] );
@@ -259,6 +327,7 @@ final class Account_Linking {
 		$cookie  = defined( 'LOGGED_IN_COOKIE' ) && isset( $_COOKIE[ LOGGED_IN_COOKIE ] ) ? (string) wp_unslash( $_COOKIE[ LOGGED_IN_COOKIE ] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- WordPress authenticates the exact raw cookie.
 		return $user_id > 0
 			&& $created > 0
+			&& $created <= time()
 			&& time() - $created <= self::INTENT_TTL
 			&& '' !== $cookie
 			&& isset( $intent['cookie_digest'] )
@@ -276,8 +345,8 @@ final class Account_Linking {
 
 	/** Choice page URL, reusing the plugin's existing page. */
 	private function choice_url() {
-		$page_id = (int) $this->settings->get( 'choice_page_id' );
+		$page_id = ( new Frontend( $this->settings ) )->ensure_page();
 		$url     = $page_id ? get_permalink( $page_id ) : '';
-		return $url ? $url : home_url( '/profile-sync/' );
+		return $url ? $url : '';
 	}
 }

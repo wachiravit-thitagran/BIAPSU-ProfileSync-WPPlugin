@@ -23,3 +23,23 @@ Starting the OAuth flow is intentionally a **browser-only POST with WordPress no
 Run `composer test`, `composer lint` and `composer analyze`. Verify the complete OAuth flow on staging with both matching and different provider emails, rejected conflicting subjects, cancel/failure paths, and original return destinations. **Do not deploy without an end-to-end browser test.**
 
 Legacy ProfileSync profile-mapping code remains in the package but is not registered at runtime.
+
+### Account linking compatibility and page recovery
+
+This version needs Authorizenter Core's `User_Mapper::claim_link()` and
+`authorizenter_pre_login_user` boundary. Explicit links are claimed after Core
+policy/capability approval and before login cookies; conflicts, lock contention,
+and persistence failures stop the login visibly. Normal Core verified-email
+linking remains available for an unlinked account. It cannot replace an existing
+different provider subject.
+
+A callback carrying `biapsu_link` requires its matching unexpired intent and the
+exact original valid WordPress login cookie. Missing, revoked, switched or renewed
+cookies require restarting the linking flow. Ordinary OIDC sign-ins without the
+link marker retain their normal behavior.
+
+The choice page must be published, have page post type and contain the plugin
+shortcode. Administration and Google routing recover unusable/missing pages
+without editing unrelated slug-collision content. If creation or the default
+context's OIDC provider configuration is unavailable, Google keeps its original
+destination and administrators see a setup notice.

@@ -11,6 +11,13 @@
  */
 
 namespace Authorizenter\Core {
+	class User_Mapper {
+		public static function claim_link( $user_id, $provider, $subject ) {
+			if ( isset( $GLOBALS['__claim_link_callback'] ) ) { return ($GLOBALS['__claim_link_callback'])($user_id, $provider, $subject); }
+			return update_user_meta( $user_id, 'authorizenter_link_' . $provider, $subject );
+		}
+	}
+
 	if ( ! function_exists( __NAMESPACE__ . '\\authorizenter_core' ) ) {
 		function authorizenter_core() {
 			return $GLOBALS['__bia_core'] ?? null;
